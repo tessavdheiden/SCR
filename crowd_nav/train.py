@@ -17,7 +17,7 @@ from crowd_nav.policy.policy_factory import policy_factory
 def main():
     parser = argparse.ArgumentParser('Parse configuration file')
     parser.add_argument('--env_config', type=str, default='configs/env.config')
-    parser.add_argument('--policy', type=str, default='cadrl')
+    parser.add_argument('--policy', type=str, default='sarl')
     parser.add_argument('--policy_config', type=str, default='configs/policy.config')
     parser.add_argument('--train_config', type=str, default='configs/train.config')
     parser.add_argument('--output_dir', type=str, default='data/output')
