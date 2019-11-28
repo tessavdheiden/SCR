@@ -1,6 +1,8 @@
 import logging
 import copy
 import torch
+import numpy as np
+from numpy.linalg import norm
 from crowd_sim.envs.utils.info import *
 
 
@@ -22,6 +24,7 @@ class Explorer(object):
                        print_failure=False):
         self.robot.policy.set_phase(phase)
         success_times = []
+        success_lengths = []
         collision_times = []
         timeout_times = []
         success = 0
@@ -52,6 +55,7 @@ class Explorer(object):
             if isinstance(info, ReachGoal):
                 success += 1
                 success_times.append(self.env.global_time)
+                success_lengths.append(sum([norm(np.array([action.vx, action.vy]), 2)*self.robot.time_step for action in actions]))
             elif isinstance(info, Collision):
                 collision += 1
                 collision_cases.append(i)
@@ -75,10 +79,11 @@ class Explorer(object):
         collision_rate = collision / k
         assert success + collision + timeout == k
         avg_nav_time = sum(success_times) / len(success_times) if success_times else self.env.time_limit
+        avg_nav_length = sum(success_lengths) / len(success_lengths) if success_lengths else self.env.time_limit * self.robot.v_pref
 
         extra_info = '' if episode is None else 'in episode {} '.format(episode)
-        logging.info('{:<5} {}has success rate: {:.2f}, collision rate: {:.2f}, nav time: {:.2f}, total reward: {:.4f}'.
-                     format(phase.upper(), extra_info, success_rate, collision_rate, avg_nav_time,
+        logging.info('{:<5} {}has success rate: {:.2f}, collision rate: {:.2f}, nav time: {:.2f}, nav length: {:.2f}, total reward: {:.4f}'.
+                     format(phase.upper(), extra_info, success_rate, collision_rate, avg_nav_time, avg_nav_length,
                             average(cumulative_rewards)))
         if phase in ['val', 'test']:
             total_time = sum(success_times + collision_times + timeout_times) * self.robot.time_step

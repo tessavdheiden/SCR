@@ -15,7 +15,7 @@ def main():
     parser = argparse.ArgumentParser('Parse configuration file')
     parser.add_argument('--env_config', type=str, default='configs/env.config')
     parser.add_argument('--policy_config', type=str, default='configs/policy.config')
-    parser.add_argument('--policy', type=str, default='orca')
+    parser.add_argument('--policy', type=str, default='sarl')
     parser.add_argument('--model_dir', type=str, default=None)
     parser.add_argument('--il', default=False, action='store_true')
     parser.add_argument('--gpu', default=False, action='store_true')
@@ -24,7 +24,7 @@ def main():
     parser.add_argument('--test_case', type=int, default=None)
     parser.add_argument('--square', default=False, action='store_true')
     parser.add_argument('--circle', default=False, action='store_true')
-    parser.add_argument('--video_file', type=str, default='test.mp4')
+    parser.add_argument('--video_file', type=str, default=None)
     parser.add_argument('--traj', default=False, action='store_true')
     args = parser.parse_args()
 

@@ -422,7 +422,7 @@ class CrowdSim(gym.Env):
     def render(self, mode='human', output_file=None):
         from matplotlib import animation
         import matplotlib.pyplot as plt
-        plt.rcParams['animation.ffmpeg_path'] = '/usr/bin/ffmpeg'
+        #plt.rcParams['animation.ffmpeg_path'] = '/usr/bin/ffmpeg'
 
         x_offset = 0.11
         y_offset = 0.11
