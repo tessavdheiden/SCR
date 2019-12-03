@@ -1,4 +1,5 @@
 from torch.utils.data import Dataset
+from collections import namedtuple
 
 
 class ReplayMemory(Dataset):
@@ -6,13 +7,15 @@ class ReplayMemory(Dataset):
         self.capacity = capacity
         self.memory = list()
         self.position = 0
+        self.experience = namedtuple("Experience", field_names=["state", "value", "action"])
 
     def push(self, item):
         # replace old experience with new experience
+        e = self.experience(item[0], item[1], item[2])
         if len(self.memory) < self.position + 1:
-            self.memory.append(item)
+            self.memory.append(e)
         else:
-            self.memory[self.position] = item
+            self.memory[self.position] = e
         self.position = (self.position + 1) % self.capacity
 
     def is_full(self):

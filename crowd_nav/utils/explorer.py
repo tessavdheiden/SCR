@@ -40,6 +40,7 @@ class Explorer(object):
             done = False
             states = []
             actions = []
+            human_actions = []
             rewards = []
             while not done:
                 action = self.robot.act(ob)
@@ -47,6 +48,7 @@ class Explorer(object):
                 states.append(self.robot.policy.last_state)
                 actions.append(action)
                 rewards.append(reward)
+                human_actions.append([human.get_velocity() for human in self.env.humans])
 
                 if isinstance(info, Danger):
                     too_close += 1
@@ -70,7 +72,7 @@ class Explorer(object):
             if update_memory:
                 if isinstance(info, ReachGoal) or isinstance(info, Collision):
                     # only add positive(success) or negative(collision) experience in experience set
-                    self.update_memory(states, actions, rewards, imitation_learning)
+                    self.update_memory(states, human_actions, rewards, imitation_learning)
 
             cumulative_rewards.append(sum([pow(self.gamma, t * self.robot.time_step * self.robot.v_pref)
                                            * reward for t, reward in enumerate(rewards)]))
@@ -100,6 +102,7 @@ class Explorer(object):
 
         for i, state in enumerate(states):
             reward = rewards[i]
+            action = actions[i]
 
             # VALUE UPDATE
             if imitation_learning:
@@ -127,7 +130,7 @@ class Explorer(object):
             # if human_num != 5:
             #     padding = torch.zeros((5 - human_num, feature_size))
             #     state = torch.cat([state, padding])
-            self.memory.push((state, value))
+            self.memory.push((state, value, action))
 
 
 def average(input_list):
