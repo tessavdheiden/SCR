@@ -18,7 +18,7 @@ outperforming state-of-the-art methods.
 
 
 ## Method Overview
-<img src="algorithm.png" width="1000" />
+<img src="algorithm.png" width="500" />
 <img src="https://i.imgur.com/YOPHXD1.png" width="1000" />
 
 ## Setup
