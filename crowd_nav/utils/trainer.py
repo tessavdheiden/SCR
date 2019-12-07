@@ -31,7 +31,7 @@ class Trainer(object):
         for epoch in range(num_epochs):
             epoch_loss = 0
             for data in self.data_loader:
-                inputs, values, actions = data
+                inputs, values, maps = data
                 inputs = Variable(inputs)
                 values = Variable(values)
 
@@ -54,7 +54,7 @@ class Trainer(object):
             self.data_loader = DataLoader(self.memory, self.batch_size, shuffle=True)
         losses = 0
         for _ in range(num_batches):
-            inputs, values, actions = next(iter(self.data_loader))
+            inputs, values, maps = next(iter(self.data_loader))
             inputs = Variable(inputs)
             values = Variable(values)
 

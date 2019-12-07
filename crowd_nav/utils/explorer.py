@@ -48,7 +48,9 @@ class Explorer(object):
                 states.append(self.robot.policy.last_state)
                 actions.append(action)
                 rewards.append(reward)
-                human_actions.append([human.get_velocity() for human in self.env.humans])
+                human_action = [human.get_velocity() for human in self.env.humans]
+
+                human_actions.append(human_action)
 
                 if isinstance(info, Danger):
                     too_close += 1
@@ -102,7 +104,7 @@ class Explorer(object):
 
         for i, state in enumerate(states):
             reward = rewards[i]
-            action = actions[i]
+            human_states = torch.Tensor([(s.px, s.py, s.vx, s.vy, s.radius) for s in state.human_states]).to(self.device)
 
             # VALUE UPDATE
             if imitation_learning:
@@ -130,7 +132,8 @@ class Explorer(object):
             # if human_num != 5:
             #     padding = torch.zeros((5 - human_num, feature_size))
             #     state = torch.cat([state, padding])
-            self.memory.push((state, value, action))
+
+            self.memory.push((state, value, human_states))
 
 
 def average(input_list):

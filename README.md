@@ -3,6 +3,7 @@ This repository contains the codes for our ICRA 2018 paper. For more details, pl
 [Crowd-Robot Interaction: Crowd-aware Robot Navigation with Attention-based Deep Reinforcement Learning](https://arxiv.org/abs/1809.08835).
 
 
+
 ## Abstract
 Mobility in an effective and socially-compliant manner is an essential yet challenging task for robots operating in crowded spaces.
 Recent works have shown the power of deep reinforcement learning techniques to learn socially cooperative policies.
