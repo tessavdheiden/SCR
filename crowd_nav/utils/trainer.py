@@ -3,6 +3,9 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.autograd import Variable
 from torch.utils.data import DataLoader
+from crowd_nav.empowerment.source import Source
+from crowd_nav.empowerment.planning import Planning
+from crowd_nav.empowerment.transition import Transition
 
 
 class Trainer(object):
@@ -17,6 +20,9 @@ class Trainer(object):
         self.data_loader = None
         self.batch_size = batch_size
         self.optimizer = None
+        self.source = Source(5, 5)
+        self.planning = Planning(5, 5)
+        self.transition = Transition(5, 5)
 
     def set_learning_rate(self, learning_rate):
         logging.info('Current learning rate: %f', learning_rate)
@@ -31,15 +37,24 @@ class Trainer(object):
         for epoch in range(num_epochs):
             epoch_loss = 0
             for data in self.data_loader:
-                inputs, values, maps = data
+                inputs, values, human_state, human_next_state = data
                 inputs = Variable(inputs)
                 values = Variable(values)
+                human_state = Variable(human_state)
+                #human_next_state = Variable(human_next_state)
 
+                # self.optimizer.step()
                 self.optimizer.zero_grad()
+                human_actions = self.source(human_state)
+                human_next_state = self.transition(human_actions, human_state)
+                human_actions_planning = self.planning(human_state, human_next_state)
+                MI = -(human_actions - human_actions_planning).mean()
+
                 outputs = self.model(inputs)
-                loss = self.criterion(outputs, values)
+                loss = self.criterion(outputs, values) + MI
                 loss.backward()
                 self.optimizer.step()
+
                 epoch_loss += loss.data.item()
 
             average_epoch_loss = epoch_loss / len(self.memory)
@@ -54,13 +69,20 @@ class Trainer(object):
             self.data_loader = DataLoader(self.memory, self.batch_size, shuffle=True)
         losses = 0
         for _ in range(num_batches):
-            inputs, values, maps = next(iter(self.data_loader))
+            inputs, values, human_state, human_next_state = next(iter(self.data_loader))
             inputs = Variable(inputs)
             values = Variable(values)
+            human_state = Variable(human_state)
+            # human_next_state = Variable(human_next_state)
 
             self.optimizer.zero_grad()
+            human_actions = self.source(human_state)
+            human_next_states = self.transition(human_actions, human_state)
+            human_actions_planning = self.planning(human_state, human_next_states)
+            MI = -(human_actions - human_actions_planning).mean()
+
             outputs = self.model(inputs)
-            loss = self.criterion(outputs, values)
+            loss = self.criterion(outputs, values) + MI
             loss.backward()
             self.optimizer.step()
             losses += loss.data.item()

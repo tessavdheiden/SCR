@@ -40,21 +40,26 @@ class Explorer(object):
             done = False
             states = []
             actions = []
-            human_actions = []
+            human_states = []
+            human_next_states = []
             rewards = []
             while not done:
                 action = self.robot.act(ob)
-                ob, reward, done, info = self.env.step(action)
-                states.append(self.robot.policy.last_state)
+                human_state, reward, done, info = self.env.step(action)
                 actions.append(action)
+                states.append(self.robot.policy.last_state)
+                human_states.append(human_state)
                 rewards.append(reward)
-                human_action = [human.get_velocity() for human in self.env.humans]
-
-                human_actions.append(human_action)
 
                 if isinstance(info, Danger):
                     too_close += 1
                     min_dist.append(info.min_dist)
+
+                if not done:
+                    next_human_state, _, _, _ = self.env.onestep_lookahead(action)
+                    human_next_states.append(next_human_state)
+                else:
+                    human_next_states.append(human_state)
 
             if isinstance(info, ReachGoal):
                 success += 1
@@ -74,7 +79,7 @@ class Explorer(object):
             if update_memory:
                 if isinstance(info, ReachGoal) or isinstance(info, Collision):
                     # only add positive(success) or negative(collision) experience in experience set
-                    self.update_memory(states, human_actions, rewards, imitation_learning)
+                    self.update_memory(states, human_states, human_next_states, rewards, imitation_learning)
 
             cumulative_rewards.append(sum([pow(self.gamma, t * self.robot.time_step * self.robot.v_pref)
                                            * reward for t, reward in enumerate(rewards)]))
@@ -98,22 +103,30 @@ class Explorer(object):
             logging.info('Collision cases: ' + ' '.join([str(x) for x in collision_cases]))
             logging.info('Timeout cases: ' + ' '.join([str(x) for x in timeout_cases]))
 
-    def update_memory(self, states, actions, rewards, imitation_learning=False):
+    def update_memory(self, states, human_states, human_next_states, rewards, imitation_learning=False):
         if self.memory is None or self.gamma is None:
             raise ValueError('Memory or gamma value is not set!')
 
         for i, state in enumerate(states):
             reward = rewards[i]
-            human_states = torch.Tensor([(s.px, s.py, s.vx, s.vy, s.radius) for s in state.human_states]).to(self.device)
 
             # VALUE UPDATE
             if imitation_learning:
+                h_s = torch.Tensor([(s.px, s.py, s.vx, s.vy, s.radius) for s in state.human_states]).to(
+                    self.device)
+
+                h_s_ = torch.zeros_like(h_s)
+
                 # define the value of states in IL as cumulative discounted rewards, which is the same in RL
                 state = self.target_policy.transform(state)
                 # value = pow(self.gamma, (len(states) - 1 - i) * self.robot.time_step * self.robot.v_pref)
                 value = sum([pow(self.gamma, max(t - i, 0) * self.robot.time_step * self.robot.v_pref) * reward
                              * (1 if t >= i else 0) for t, reward in enumerate(rewards)])
             else:
+                h_s = torch.Tensor([(s.px, s.py, s.vx, s.vy, s.radius) for s in human_states[i]]).to(
+                    self.device)
+                h_s_ = torch.Tensor([(s.px, s.py, s.vx, s.vy, s.radius) for s in human_next_states[i]]).to(
+                    self.device)
                 if i == len(states) - 1:
                     # terminal state
                     value = reward
@@ -133,7 +146,7 @@ class Explorer(object):
             #     padding = torch.zeros((5 - human_num, feature_size))
             #     state = torch.cat([state, padding])
 
-            self.memory.push((state, value, human_states))
+            self.memory.push((state, value, h_s, h_s_))
 
 
 def average(input_list):

@@ -7,11 +7,11 @@ class ReplayMemory(Dataset):
         self.capacity = capacity
         self.memory = list()
         self.position = 0
-        self.experience = namedtuple("Experience", field_names=["state", "value", "human_state"])
+        self.experience = namedtuple("Experience", field_names=["state", "value", "human_state", "human_next_state"])
 
     def push(self, item):
         # replace old experience with new experience
-        e = self.experience(item[0], item[1], item[2])
+        e = self.experience(item[0], item[1], item[2], item[3])
         if len(self.memory) < self.position + 1:
             self.memory.append(e)
         else:
