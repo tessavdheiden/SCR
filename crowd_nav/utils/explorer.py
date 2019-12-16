@@ -3,7 +3,10 @@ import copy
 import torch
 import numpy as np
 from numpy.linalg import norm
+from collections import namedtuple
 from crowd_sim.envs.utils.info import *
+
+
 
 
 class Explorer(object):
@@ -35,13 +38,14 @@ class Explorer(object):
         cumulative_rewards = []
         collision_cases = []
         timeout_cases = []
+        robot_avg_acc = []
+        human_avg_times = []
         for i in range(k):
             ob = self.env.reset(phase)
             done = False
             states = []
             actions = []
             human_states = []
-            human_next_states = []
             rewards = []
             while not done:
                 action = self.robot.act(ob)
@@ -55,11 +59,6 @@ class Explorer(object):
                     too_close += 1
                     min_dist.append(info.min_dist)
 
-                if not done:
-                    next_human_state, _, _, _ = self.env.onestep_lookahead(action)
-                    human_next_states.append(next_human_state)
-                else:
-                    human_next_states.append(human_state)
 
             if isinstance(info, ReachGoal):
                 success += 1
@@ -79,10 +78,18 @@ class Explorer(object):
             if update_memory:
                 if isinstance(info, ReachGoal) or isinstance(info, Collision):
                     # only add positive(success) or negative(collision) experience in experience set
-                    self.update_memory(states, human_states, human_next_states, rewards, imitation_learning)
+                    self.update_memory(states, human_states, rewards, imitation_learning)
 
             cumulative_rewards.append(sum([pow(self.gamma, t * self.robot.time_step * self.robot.v_pref)
                                            * reward for t, reward in enumerate(rewards)]))
+
+            if phase in ['val', 'test']:
+                human_times = sum([norm(np.array(human.get_position()) - np.array(human.get_goal_position()), 2) / human.v_pref for human in self.env.humans]) + self.env.global_time * len(self.env.humans)
+                human_times /= len(self.env.humans)
+                robot_vel = [norm(np.array([action.vx, action.vy]), 2) for action in actions]
+                robot_acc = abs(np.diff(robot_vel)) / self.robot.time_step
+                robot_avg_acc.append(robot_acc.mean())
+                human_avg_times.append(human_times)
 
         success_rate = success / k
         collision_rate = collision / k
@@ -96,14 +103,15 @@ class Explorer(object):
                             average(cumulative_rewards)))
         if phase in ['val', 'test']:
             total_time = sum(success_times + collision_times + timeout_times) * self.robot.time_step
-            logging.info('Frequency of being in danger: %.2f and average min separate distance in danger: %.2f',
-                         too_close / total_time, average(min_dist))
+            logging.info('Frequency of being in danger: {:.2f} and average min separate distance in danger: {:.2f}, '
+                         'acceleration: {:.2f}, human nav time: {:.2f}'.format(
+                         too_close / total_time, average(min_dist), average(robot_avg_acc), average(human_avg_times)))
 
         if print_failure:
             logging.info('Collision cases: ' + ' '.join([str(x) for x in collision_cases]))
             logging.info('Timeout cases: ' + ' '.join([str(x) for x in timeout_cases]))
 
-    def update_memory(self, states, human_states, human_next_states, rewards, imitation_learning=False):
+    def update_memory(self, states, human_states, rewards, imitation_learning=False):
         if self.memory is None or self.gamma is None:
             raise ValueError('Memory or gamma value is not set!')
 
@@ -115,8 +123,6 @@ class Explorer(object):
                 h_s = torch.Tensor([(s.px, s.py, s.vx, s.vy, s.radius) for s in state.human_states]).to(
                     self.device)
 
-                h_s_ = torch.zeros_like(h_s)
-
                 # define the value of states in IL as cumulative discounted rewards, which is the same in RL
                 state = self.target_policy.transform(state)
                 # value = pow(self.gamma, (len(states) - 1 - i) * self.robot.time_step * self.robot.v_pref)
@@ -125,8 +131,7 @@ class Explorer(object):
             else:
                 h_s = torch.Tensor([(s.px, s.py, s.vx, s.vy, s.radius) for s in human_states[i]]).to(
                     self.device)
-                h_s_ = torch.Tensor([(s.px, s.py, s.vx, s.vy, s.radius) for s in human_next_states[i]]).to(
-                    self.device)
+
                 if i == len(states) - 1:
                     # terminal state
                     value = reward
@@ -146,7 +151,7 @@ class Explorer(object):
             #     padding = torch.zeros((5 - human_num, feature_size))
             #     state = torch.cat([state, padding])
 
-            self.memory.push((state, value, h_s, h_s_))
+            self.memory.push((state, value, h_s))
 
 
 def average(input_list):

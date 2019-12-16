@@ -20,9 +20,9 @@ class Trainer(object):
         self.data_loader = None
         self.batch_size = batch_size
         self.optimizer = None
-        self.source = Source(5, 5)
-        self.planning = Planning(5, 5)
-        self.transition = Transition(5, 5)
+        self.source = Source(5, 2)
+        self.planning = Planning(5, 2)
+        self.transition = Transition(5, 2)
 
     def set_learning_rate(self, learning_rate):
         logging.info('Current learning rate: %f', learning_rate)
@@ -37,11 +37,10 @@ class Trainer(object):
         for epoch in range(num_epochs):
             epoch_loss = 0
             for data in self.data_loader:
-                inputs, values, human_state, human_next_state = data
+                inputs, values, human_state = data
                 inputs = Variable(inputs)
                 values = Variable(values)
                 human_state = Variable(human_state)
-                #human_next_state = Variable(human_next_state)
 
                 # self.optimizer.step()
                 self.optimizer.zero_grad()
@@ -69,11 +68,10 @@ class Trainer(object):
             self.data_loader = DataLoader(self.memory, self.batch_size, shuffle=True)
         losses = 0
         for _ in range(num_batches):
-            inputs, values, human_state, human_next_state = next(iter(self.data_loader))
+            inputs, values, human_state = next(iter(self.data_loader))
             inputs = Variable(inputs)
             values = Variable(values)
             human_state = Variable(human_state)
-            # human_next_state = Variable(human_next_state)
 
             self.optimizer.zero_grad()
             human_actions = self.source(human_state)

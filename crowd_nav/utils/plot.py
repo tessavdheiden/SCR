@@ -14,7 +14,7 @@ def main():
     parser.add_argument('log_files', type=str, nargs='+')
     parser.add_argument('--plot_sr', default=False, action='store_true')
     parser.add_argument('--plot_cr', default=False, action='store_true')
-    parser.add_argument('--plot_time', default=False, action='store_true')
+    parser.add_argument('--plot_time', default=True, action='store_true')
     parser.add_argument('--plot_reward', default=True, action='store_true')
     parser.add_argument('--plot_train', default=True, action='store_true')
     parser.add_argument('--plot_val', default=False, action='store_true')
