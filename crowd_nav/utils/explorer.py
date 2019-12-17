@@ -3,10 +3,23 @@ import copy
 import torch
 import numpy as np
 from numpy.linalg import norm
-from collections import namedtuple
+from enum import Enum
+
 from crowd_sim.envs.utils.info import *
 
+class FinalState(Enum):
+    ReachGoal = 1
+    Collision = 2
+    Timeout = 3
 
+class ResultStat:
+    def __init__(self, duration, final_state, path_goal=None, cumalative_rewards=None):
+        self.duration = duration
+        self.final_state = final_state
+        self.path_goal = path_goal
+        self.cumalative_rewards = cumalative_rewards
+        self.human_duration = None
+        self.acceleration = None
 
 
 class Explorer(object):
@@ -26,20 +39,9 @@ class Explorer(object):
     def run_k_episodes(self, k, phase, update_memory=False, imitation_learning=False, episode=None,
                        print_failure=False):
         self.robot.policy.set_phase(phase)
-        success_times = []
-        success_lengths = []
-        collision_times = []
-        timeout_times = []
-        success = 0
-        collision = 0
-        timeout = 0
+        X = []
         too_close = 0
         min_dist = []
-        cumulative_rewards = []
-        collision_cases = []
-        timeout_cases = []
-        robot_avg_acc = []
-        human_avg_times = []
         for i in range(k):
             ob = self.env.reset(phase)
             done = False
@@ -59,19 +61,12 @@ class Explorer(object):
                     too_close += 1
                     min_dist.append(info.min_dist)
 
-
             if isinstance(info, ReachGoal):
-                success += 1
-                success_times.append(self.env.global_time)
-                success_lengths.append(sum([norm(np.array([action.vx, action.vy]), 2)*self.robot.time_step for action in actions]))
+                x = ResultStat(self.env.global_time, FinalState.ReachGoal)
             elif isinstance(info, Collision):
-                collision += 1
-                collision_cases.append(i)
-                collision_times.append(self.env.global_time)
+                x = ResultStat(self.env.global_time, FinalState.Collision)
             elif isinstance(info, Timeout):
-                timeout += 1
-                timeout_cases.append(i)
-                timeout_times.append(self.env.time_limit)
+                x = ResultStat(self.env.time_limit, FinalState.Timeout)
             else:
                 raise ValueError('Invalid end signal from environment')
 
@@ -80,34 +75,37 @@ class Explorer(object):
                     # only add positive(success) or negative(collision) experience in experience set
                     self.update_memory(states, human_states, rewards, imitation_learning)
 
-            cumulative_rewards.append(sum([pow(self.gamma, t * self.robot.time_step * self.robot.v_pref)
-                                           * reward for t, reward in enumerate(rewards)]))
+            x.speed = [norm(np.array([action.vx, action.vy]), 2) for action in actions]
+            x.cumalative_rewards = sum([pow(self.gamma, t * self.robot.time_step * self.robot.v_pref)
+                                           * reward for t, reward in enumerate(rewards)])
 
             if phase in ['val', 'test']:
-                human_times = sum([norm(np.array(human.get_position()) - np.array(human.get_goal_position()), 2) / human.v_pref for human in self.env.humans]) + self.env.global_time * len(self.env.humans)
-                human_times /= len(self.env.humans)
-                robot_vel = [norm(np.array([action.vx, action.vy]), 2) for action in actions]
-                robot_acc = abs(np.diff(robot_vel)) / self.robot.time_step
-                robot_avg_acc.append(robot_acc.mean())
-                human_avg_times.append(human_times)
+                x.human_duration = self.env.global_time + sum([norm(np.array(human.get_position()) - np.array(human.get_goal_position()), 2) / human.v_pref for human in self.env.humans]) / len(self.env.humans)
+                x.acceleration = (abs(np.diff(np.asarray(x.speed))) / self.robot.time_step).mean()
 
-        success_rate = success / k
-        collision_rate = collision / k
-        assert success + collision + timeout == k
-        avg_nav_time = sum(success_times) / len(success_times) if success_times else self.env.time_limit
-        avg_nav_length = sum(success_lengths) / len(success_lengths) if success_lengths else self.env.time_limit * self.robot.v_pref
+            X.append(x)
+
+        success_cases = [1. for x in X if x.final_state == FinalState.ReachGoal]
+        collision_cases = [1. for x in X if x.final_state == FinalState.Collision]
+        avg_nav_time = sum([x.duration for x in X if x.final_state == FinalState.ReachGoal]) / len(success_cases)
+        avg_nav_length = sum([vel * self.robot.time_step for vel in x.speed for x in X if x.final_state == FinalState.ReachGoal]) / len(success_cases)
+        avg_cumalative_rewards = average([x.cumalative_rewards for x in X])
 
         extra_info = '' if episode is None else 'in episode {} '.format(episode)
         logging.info('{:<5} {}has success rate: {:.2f}, collision rate: {:.2f}, nav time: {:.2f}, nav length: {:.2f}, total reward: {:.4f}'.
-                     format(phase.upper(), extra_info, success_rate, collision_rate, avg_nav_time, avg_nav_length,
-                            average(cumulative_rewards)))
+                     format(phase.upper(), extra_info, sum(success_cases) / k, sum(collision_cases) / k, avg_nav_time, avg_nav_length,
+                            avg_cumalative_rewards))
+
         if phase in ['val', 'test']:
-            total_time = sum(success_times + collision_times + timeout_times) * self.robot.time_step
+            total_time = sum([x.duration for x in X]) * self.robot.time_step
+            robot_avg_acc = average([x.acceleration for x in X])
+            avg_human_times = average([x.human_duration for x in X])
             logging.info('Frequency of being in danger: {:.2f} and average min separate distance in danger: {:.2f}, '
                          'acceleration: {:.2f}, human nav time: {:.2f}'.format(
-                         too_close / total_time, average(min_dist), average(robot_avg_acc), average(human_avg_times)))
+                         too_close / total_time, average(min_dist), robot_avg_acc, avg_human_times))
 
         if print_failure:
+            timeout_cases = [1. for x in X if x.final_state == FinalState.Timeout]
             logging.info('Collision cases: ' + ' '.join([str(x) for x in collision_cases]))
             logging.info('Timeout cases: ' + ' '.join([str(x) for x in timeout_cases]))
 
