@@ -13,13 +13,15 @@ class FinalState(Enum):
     Timeout = 3
 
 class ResultStat:
-    def __init__(self, duration, final_state, path_goal=None, cumalative_rewards=None):
+    def __init__(self, duration: float, final_state: int):
         self.duration = duration
         self.final_state = final_state
-        self.path_goal = path_goal
-        self.cumalative_rewards = cumalative_rewards
+        self.path_goal = None
+        self.cumalative_rewards = None
         self.human_duration = None
-        self.acceleration = None
+        self.speed = np.array([])
+        self.acceleration = np.array([])
+        self.jerk = np.array([])
 
 
 class Explorer(object):
@@ -75,13 +77,14 @@ class Explorer(object):
                     # only add positive(success) or negative(collision) experience in experience set
                     self.update_memory(states, human_states, rewards, imitation_learning)
 
-            x.speed = [norm(np.array([action.vx, action.vy]), 2) for action in actions]
+            x.speed = np.asarray([norm(np.array([action.vx, action.vy]), 2) for action in actions])
             x.cumalative_rewards = sum([pow(self.gamma, t * self.robot.time_step * self.robot.v_pref)
                                            * reward for t, reward in enumerate(rewards)])
 
             if phase in ['val', 'test']:
                 x.human_duration = self.env.global_time + sum([norm(np.array(human.get_position()) - np.array(human.get_goal_position()), 2) / human.v_pref for human in self.env.humans]) / len(self.env.humans)
-                x.acceleration = (abs(np.diff(np.asarray(x.speed))) / self.robot.time_step).mean()
+                x.acceleration = np.diff(x.speed) / self.robot.time_step
+                x.jerk = np.diff(x.acceleration) / self.robot.time_step
 
             X.append(x)
 
@@ -98,11 +101,11 @@ class Explorer(object):
 
         if phase in ['val', 'test']:
             total_time = sum([x.duration for x in X]) * self.robot.time_step
-            robot_avg_acc = average([x.acceleration for x in X])
+            avg_jerk = average([abs(x.jerk).mean() for x in X])
             avg_human_times = average([x.human_duration for x in X])
             logging.info('Frequency of being in danger: {:.2f} and average min separate distance in danger: {:.2f}, '
-                         'acceleration: {:.2f}, human nav time: {:.2f}'.format(
-                         too_close / total_time, average(min_dist), robot_avg_acc, avg_human_times))
+                         'jerk: {:.4f}, human nav time: {:.2f}'.format(
+                         too_close / total_time, average(min_dist), avg_jerk, avg_human_times))
 
         if print_failure:
             timeout_cases = [1. for x in X if x.final_state == FinalState.Timeout]
