@@ -11,6 +11,8 @@ def fanin_init(size, fanin=None):
 class Source(nn.Module):
     def __init__(self, nb_states, nb_actions, hidden1=400, hidden2=300, init_w=3e-3):
         super(Source, self).__init__()
+        self.nb_states = nb_states
+        self.nb_actions = nb_actions
         self.fc1 = nn.Linear(nb_states, hidden1)
         self.fc2 = nn.Linear(hidden1, hidden2)
         self.fc3 = nn.Linear(hidden2, nb_actions)
@@ -31,3 +33,9 @@ class Source(nn.Module):
         out = self.fc3(out)
         out = self.tanh(out)
         return out
+
+    def select_action(self, z):
+        batch_size, _, _ = z.shape
+        z = z.view(-1, self.nb_states)
+        out = self.forward(z)
+        return out.view(batch_size, -1, self.nb_actions)

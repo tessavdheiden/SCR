@@ -11,7 +11,7 @@ class ReplayMemory(Dataset):
 
     def push(self, item):
         # replace old experience with new experience
-        e = self.experience(item[0], item[1], item[2], item[3])
+        e = self.experience(item[0], item[1], item[2])
         if len(self.memory) < self.position + 1:
             self.memory.append(e)
         else:
