@@ -74,9 +74,9 @@ class Trainer(object):
             human_state = Variable(human_state)
 
             self.optimizer.zero_grad()
-            human_actions = self.source(human_state)
-            human_next_states = self.transition(human_actions, human_state)
-            human_actions_planning = self.planning(human_state, human_next_states)
+            human_actions = self.source.select_action(human_state)
+            human_next_state = self.transition.select_state(human_actions, human_state)
+            human_actions_planning = self.planning.select_action(human_state, human_next_state)
             MI = -(human_actions - human_actions_planning).mean()
 
             outputs = self.model(inputs)
