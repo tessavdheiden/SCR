@@ -3,25 +3,25 @@ import copy
 import torch
 import numpy as np
 from numpy.linalg import norm
-from enum import Enum
 
 from crowd_sim.envs.utils.info import *
 
-class FinalState(Enum):
-    ReachGoal = 1
-    Collision = 2
-    Timeout = 3
-
-class ResultStat:
-    def __init__(self, duration: float, final_state: int):
-        self.duration = duration
-        self.final_state = final_state
+class Success(ReachGoal):
+    def __init__(self, speed):
+        super().__init__()
         self.path_goal = None
-        self.cumalative_rewards = None
         self.human_duration = None
-        self.speed = np.array([])
+        self.speed = speed #np.array([])
         self.acceleration = np.array([])
         self.jerk = np.array([])
+
+
+class ResultStat:
+    def __init__(self, duration: float, info: Info, cumalative_rewards: float, epoch: int):
+        self.duration = duration
+        self.info = info
+        self.cumalative_rewards = cumalative_rewards
+        self.epoch = epoch
 
 
 class Explorer(object):
@@ -63,12 +63,16 @@ class Explorer(object):
                     too_close += 1
                     min_dist.append(info.min_dist)
 
+            cumalative_rewards = sum([pow(self.gamma, t * self.robot.time_step * self.robot.v_pref)
+                                            * reward for t, reward in enumerate(rewards)])
+
             if isinstance(info, ReachGoal):
-                x = ResultStat(self.env.global_time, FinalState.ReachGoal)
+                speed = np.asarray([norm(np.array([action.vx, action.vy]), 2) for action in actions])
+                x = ResultStat(self.env.global_time, Success(speed), cumalative_rewards, i)
             elif isinstance(info, Collision):
-                x = ResultStat(self.env.global_time, FinalState.Collision)
+                x = ResultStat(self.env.global_time, info, cumalative_rewards, i)
             elif isinstance(info, Timeout):
-                x = ResultStat(self.env.time_limit, FinalState.Timeout)
+                x = ResultStat(self.env.time_limit, info, cumalative_rewards, i)
             else:
                 raise ValueError('Invalid end signal from environment')
 
@@ -77,38 +81,37 @@ class Explorer(object):
                     # only add positive(success) or negative(collision) experience in experience set
                     self.update_memory(states, human_states, rewards, imitation_learning)
 
-            x.speed = np.asarray([norm(np.array([action.vx, action.vy]), 2) for action in actions])
-            x.cumalative_rewards = sum([pow(self.gamma, t * self.robot.time_step * self.robot.v_pref)
-                                           * reward for t, reward in enumerate(rewards)])
 
             if phase in ['val', 'test']:
-                x.human_duration = self.env.global_time + sum([norm(np.array(human.get_position()) - np.array(human.get_goal_position()), 2) / human.v_pref for human in self.env.humans]) / len(self.env.humans)
-                x.acceleration = np.diff(x.speed) / self.robot.time_step
-                x.jerk = np.diff(x.acceleration) / self.robot.time_step
+                if isinstance(x.info, Success):
+                    x.info.human_duration = self.env.global_time + sum([norm(np.array(human.get_position()) - np.array(human.get_goal_position()), 2) / human.v_pref for human in self.env.humans]) / len(self.env.humans)
+                    x.info.acceleration = np.diff(x.info.speed) / self.robot.time_step
+                    x.info.jerk = np.diff(x.info.acceleration) / self.robot.time_step
 
             X.append(x)
 
-        success_cases = [1. for x in X if x.final_state == FinalState.ReachGoal]
-        collision_cases = [1. for x in X if x.final_state == FinalState.Collision]
-        avg_nav_time = sum([x.duration for x in X if x.final_state == FinalState.ReachGoal]) / len(success_cases)
-        avg_nav_length = sum([vel * self.robot.time_step for vel in x.speed for x in X if x.final_state == FinalState.ReachGoal]) / len(success_cases)
+
+        success_cases = [x.epoch for x in X if isinstance(x.info, Success)]
+        collision_cases = [x.epoch for x in X if isinstance(x.info, Collision)]
+        avg_nav_time = sum([x.duration for x in X if isinstance(x.info, Success)]) / len(success_cases)
+        avg_nav_length = sum([vel * self.robot.time_step for vel in x.info.speed for x in X if isinstance(x.info, Success)]) / len(success_cases)
         avg_cumalative_rewards = average([x.cumalative_rewards for x in X])
 
         extra_info = '' if episode is None else 'in episode {} '.format(episode)
         logging.info('{:<5} {}has success rate: {:.2f}, collision rate: {:.2f}, nav time: {:.2f}, nav length: {:.2f}, total reward: {:.4f}'.
-                     format(phase.upper(), extra_info, sum(success_cases) / k, sum(collision_cases) / k, avg_nav_time, avg_nav_length,
+                     format(phase.upper(), extra_info, len(success_cases) / k, len(collision_cases) / k, avg_nav_time, avg_nav_length,
                             avg_cumalative_rewards))
 
         if phase in ['val', 'test']:
             total_time = sum([x.duration for x in X]) * self.robot.time_step
-            avg_jerk = average([abs(x.jerk).mean() for x in X])
-            avg_human_times = average([x.human_duration for x in X])
+            avg_jerk = average([abs(x.info.jerk).mean() for x in X if isinstance(x.info, Success)])
+            avg_human_times = average([x.info.human_duration for x in X if isinstance(x.info, Success)])
             logging.info('Frequency of being in danger: {:.2f} and average min separate distance in danger: {:.2f}, '
                          'jerk: {:.4f}, human nav time: {:.2f}'.format(
                          too_close / total_time, average(min_dist), avg_jerk, avg_human_times))
 
         if print_failure:
-            timeout_cases = [1. for x in X if x.final_state == FinalState.Timeout]
+            timeout_cases = [x.epoch for x in X if isinstance(x.info, Timeout)]
             logging.info('Collision cases: ' + ' '.join([str(x) for x in collision_cases]))
             logging.info('Timeout cases: ' + ' '.join([str(x) for x in timeout_cases]))
 
