@@ -143,12 +143,13 @@ class Explorer(object):
                             avg_cumulative_rewards))
 
         if phase in ['val', 'test']:
-            total_time = sum([x.duration for x in X.results]) * self.robot.time_step
-            avg_jerk = average([x.jerk.mean() for x in X.results if isinstance(x, RSSuccess)])
-            avg_human_times = average([x.avg_human_time for x in X.results if isinstance(x, RSSuccess)])
-            logging.info('Frequency of being in danger: {:.2f} and average min separate distance in danger: {:.2f}, '
-                         'jerk: {:.4f}, human nav time: {:.2f}'.format(
-                         too_close / total_time, average(min_dist), avg_jerk, avg_human_times))
+            if len(X.results) > 0:
+                total_time = sum([x.duration for x in X.results]) * self.robot.time_step
+                avg_jerk = average([x.jerk.mean() for x in X.results if isinstance(x, RSSuccess)])
+                avg_human_times = average([x.avg_human_time for x in X.results if isinstance(x, RSSuccess)])
+                logging.info('Frequency of being in danger: {:.2f} and average min separate distance in danger: {:.2f}, '
+                             'jerk: {:.4f}, human nav time: {:.2f}'.format(
+                             too_close / total_time, average(min_dist), avg_jerk, avg_human_times))
 
         if print_failure:
             timeout_cases = [x.epoch for x in X.results if isinstance(x.info, Timeout)]

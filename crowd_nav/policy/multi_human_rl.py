@@ -45,7 +45,7 @@ class MultiHumanRL(CADRL):
                 rotated_batch_input = self.rotate(batch_next_states).unsqueeze(0)
                 if self.with_om:
                     if occupancy_maps is None:
-                        occupancy_maps = self.build_occupancy_maps(next_human_states).unsqueeze(0)
+                        occupancy_maps = self.build_occupancy_maps(next_human_states, next_self_state).unsqueeze(0)
                     rotated_batch_input = torch.cat([rotated_batch_input, occupancy_maps.to(self.device)], dim=2)
                 # VALUE UPDATE
                 next_state_value = self.model(rotated_batch_input).data.item()
@@ -97,7 +97,7 @@ class MultiHumanRL(CADRL):
         state_tensor = torch.cat([torch.Tensor([state.self_state + human_state]).to(self.device)
                                   for human_state in state.human_states], dim=0)
         if self.with_om:
-            occupancy_maps = self.build_occupancy_maps(state.human_states)
+            occupancy_maps = self.build_occupancy_maps(state.human_states, state.self_state)
             state_tensor = torch.cat([self.rotate(state_tensor), occupancy_maps.to(self.device)], dim=1)
         else:
             state_tensor = self.rotate(state_tensor)
@@ -106,16 +106,16 @@ class MultiHumanRL(CADRL):
     def input_dim(self):
         return self.joint_state_dim + (self.cell_num ** 2 * self.om_channel_size if self.with_om else 0)
 
-    def build_occupancy_maps(self, human_states):
+    def build_occupancy_maps(self, human_states, robot_state):
         """
-
         :param human_states:
+        :param robot_state
         :return: tensor of shape (# human - 1, self.cell_num ** 2)
         """
         occupancy_maps = []
         for human in human_states:
             other_humans = np.concatenate([np.array([(other_human.px, other_human.py, other_human.vx, other_human.vy)])
-                                         for other_human in human_states if other_human != human], axis=0)
+                                         for other_human in human_states + [robot_state] if other_human != human], axis=0)
             other_px = other_humans[:, 0] - human.px
             other_py = other_humans[:, 1] - human.py
             # new x-axis is in the direction of human's velocity

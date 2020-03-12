@@ -115,6 +115,21 @@ class CADRL(Policy):
                 next_py = state.py + action.vy * self.time_step
                 next_state = FullState(next_px, next_py, action.vx, action.vy, state.radius,
                                        state.gx, state.gy, state.v_pref, state.theta)
+            elif self.kinematics == 'unicycle':
+                # altered for Turtlebot:
+                next_theta = state.theta + (action.r * self.time_step)
+                next_vx = action.v * np.cos(next_theta)
+                next_vy = action.v * np.sin(next_theta)
+                if action.r == 0:
+                    next_px = state.px + action.v * np.cos(state.theta) * self.time_step
+                    next_py = state.py + action.v * np.sin(state.theta) * self.time_step
+                else:
+                    next_px = state.px + (action.v / action.r) * (
+                            np.sin(action.r * self.time_step + state.theta) - np.sin(state.theta))
+                    next_py = state.py + (action.v / action.r) * (
+                            np.cos(state.theta) - np.cos(action.r * self.time_step + state.theta))
+                next_state = FullState(next_px, next_py, next_vx, next_vy, state.radius, state.gx, state.gy,
+                                       state.v_pref, next_theta)
             else:
                 next_theta = state.theta + action.r
                 next_vx = action.v * np.cos(next_theta)
