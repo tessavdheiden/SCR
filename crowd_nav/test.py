@@ -5,10 +5,14 @@ import os
 import torch
 import numpy as np
 import gym
+
 from crowd_nav.utils.explorer import Explorer
 from crowd_nav.policy.policy_factory import policy_factory
 from crowd_sim.envs.utils.robot import Robot
 from crowd_sim.envs.policy.orca import ORCA
+from crowd_sim.envs.visualization.observer_subscriber import notify
+from crowd_sim.envs.visualization.plotter import Plotter
+from crowd_sim.envs.visualization.video import Video
 
 
 def main():
@@ -25,7 +29,7 @@ def main():
     parser.add_argument('--square', default=False, action='store_true')
     parser.add_argument('--circle', default=False, action='store_true')
     parser.add_argument('--video_file', type=str, default=None)
-    parser.add_argument('--traj', default=False, action='store_true')
+    parser.add_argument('--plot_file', type=str, default=None)
     args = parser.parse_args()
 
     if args.model_dir is not None:
@@ -39,7 +43,6 @@ def main():
             else:
                 model_weights = os.path.join(args.model_dir, 'rl_model.pth')
     else:
-        env_config_file = args.env_config
         policy_config_file = args.env_config
 
     # configure logging and device
@@ -60,7 +63,7 @@ def main():
 
     # configure environment
     env_config = configparser.RawConfigParser()
-    env_config.read(env_config_file)
+    env_config.read(args.env_config)
     env = gym.make('CrowdSim-v0')
     env.configure(env_config)
     if args.square:
@@ -84,20 +87,39 @@ def main():
 
     policy.set_env(env)
     robot.print_info()
+
     if args.visualize:
         ob = env.reset(args.phase, args.test_case)
         done = False
         last_pos = np.array(robot.get_position())
+
+        observation_subscribers = []
+
+        if args.plot_file:
+            plotter = Plotter(args.plot_file)
+            observation_subscribers.append(plotter)
+        if args.video_file:
+            video = Video(args.video_file)
+            observation_subscribers.append(video)
+
+        t = 0
         while not done:
             action = robot.act(ob)
             ob, _, done, info = env.step(action)
+
+            notify(observation_subscribers, env.states[t])
+            t += 1
+            if args.visualize:
+                env.render()
+
             current_pos = np.array(robot.get_position())
             logging.debug('Speed: %.2f', np.linalg.norm(current_pos - last_pos) / robot.time_step)
             last_pos = current_pos
-        if args.traj:
-            env.render('traj', args.video_file)
-        else:
-            env.render('video', args.video_file)
+
+        if args.plot_file:
+            plotter.save()
+        if args.video_file:
+            video.make()
 
         logging.info('It takes %.2f seconds to finish. Final status is %s', env.global_time, info)
         if robot.visible and info == 'reach goal':
