@@ -5,7 +5,7 @@ import numpy as np
 from numpy.linalg import norm
 
 from crowd_sim.envs.utils.info import *
-
+from crowd_sim.envs.utils.action import *
 
 class ResultStat(object):
     def __init__(self, duration: float, cumulative_rewards: float, epoch: int):
@@ -114,7 +114,10 @@ class Explorer(object):
                                             * reward for t, reward in enumerate(rewards)])
 
             if isinstance(info, ReachGoal):
-                speed = np.asarray([norm(np.array([action.vx, action.vy]), 2) for action in actions])
+                if isinstance(actions[0], ActionXY):
+                    speed = np.asarray([norm(np.array([action.vx, action.vy]), 2) for action in actions])
+                else:
+                    speed = np.asarray([abs(action.v) for action in actions])
                 x = RSSuccess(self.env.global_time, cumalative_rewards, i, speed, self.robot.time_step)
             elif isinstance(info, Collision):
                 x = RSCollision(self.env.global_time, cumalative_rewards, i)
@@ -123,10 +126,10 @@ class Explorer(object):
             else:
                 raise ValueError('Invalid end signal from environment')
 
-            if update_memory:
-                if isinstance(info, ReachGoal) or isinstance(info, Collision):
-                    # only add positive(success) or negative(collision) experience in experience set
-                    self.update_memory(states, human_states, rewards, imitation_learning)
+            # if update_memory:
+            #     if isinstance(info, ReachGoal) or isinstance(info, Collision):
+            #         # only add positive(success) or negative(collision) experience in experience set
+            self.update_memory(states, human_states, rewards, imitation_learning)
 
             X.push(x, global_time=self.env.global_time, humans=self.env.humans)
 
