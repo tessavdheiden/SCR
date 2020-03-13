@@ -102,13 +102,11 @@ def main():
             video = Video(args.video_file)
             observation_subscribers.append(video)
 
-        t = 0
         while not done:
             action = robot.act(ob)
             ob, _, done, info = env.step(action)
 
-            notify(observation_subscribers, env.states[t])
-            t += 1
+            notify(observation_subscribers, env.state)
             if args.visualize:
                 env.render()
 

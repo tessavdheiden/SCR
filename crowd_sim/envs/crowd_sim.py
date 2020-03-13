@@ -49,7 +49,7 @@ class CrowdSim(gym.Env):
         self.circle_radius = None
         self.human_num = None
         # for visualization
-        self.states = None
+        self.state = None
         self.action_values = None
         self.attention_weights = None
 
@@ -251,7 +251,7 @@ class CrowdSim(gym.Env):
             self.robot.set_position(sim.getAgentPosition(0))
             for i, human in enumerate(self.humans):
                 human.set_position(sim.getAgentPosition(i + 1))
-            self.states.append([self.robot.get_full_state(), [human.get_full_state() for human in self.humans]])
+            self.state = [self.robot.get_full_state(), [human.get_full_state() for human in self.humans]]
 
         del sim
         return self.human_times
@@ -305,7 +305,7 @@ class CrowdSim(gym.Env):
             agent.time_step = self.time_step
             agent.policy.time_step = self.time_step
 
-        self.states = list()
+        self.state = list()
         if hasattr(self.robot.policy, 'action_values'):
             self.action_values = list()
         if hasattr(self.robot.policy, 'get_attention_weights'):
@@ -398,7 +398,7 @@ class CrowdSim(gym.Env):
 
         if update:
             # store state, action value and attention weights
-            self.states.append([self.robot.get_full_state(), [human.get_full_state() for human in self.humans]])
+            self.state = [self.robot.get_full_state(), [human.get_full_state() for human in self.humans]]
             if hasattr(self.robot.policy, 'action_values'):
                 self.action_values.append(self.robot.policy.action_values)
             if hasattr(self.robot.policy, 'get_attention_weights'):
