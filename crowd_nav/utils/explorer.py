@@ -7,67 +7,21 @@ from numpy.linalg import norm
 from crowd_sim.envs.utils.info import *
 from crowd_sim.envs.utils.action import *
 
-class ResultStat(object):
-    def __init__(self, duration: float, cumulative_rewards: float, epoch: int):
-        self.duration = duration
-        self.cumulative_rewards = cumulative_rewards
-        self.epoch = epoch
 
+def get_speed(actions):
+    if isinstance(actions[0], ActionXY):
+        return np.asarray([norm(np.array([action.vx, action.vy]), 2) for action in actions])
+    else:
+        return np.asarray([abs(action.v) for action in actions])
 
-class RSSuccess(ResultStat):
-    def __init__(self, duration: float, cumulative_rewards: float, epoch: int, speed, delta_t: float):
-        super().__init__(duration, cumulative_rewards, epoch)
-        self.duration = duration
-        self.cumulative_rewards = cumulative_rewards
-        self.epoch = epoch
-        self.speed = speed
-        self.delta_t = delta_t
-        self.avg_human_time = None
+def get_acceleration(speed, delta_t):
+    return np.diff(speed) / delta_t
 
-    @property
-    def acceleration(self):
-        return np.diff(self.speed) / self.delta_t
+def get_jerk(acceleration, delta_t):
+    return np.diff(acceleration) / delta_t
 
-    @property
-    def jerk(self):
-        return np.diff(self.acceleration) / self.delta_t
-
-    def human_times(self, humans, global_time):
-        self.avg_human_time = global_time + sum([norm(np.array(human.get_position()) - np.array(human.get_goal_position()), 2) / human.v_pref for human in humans]) / len(humans)
-
-
-class RSCollision(ResultStat):
-    def __init__(self, duration: float, cumulative_rewards: float, epoch: int):
-        super().__init__(duration, cumulative_rewards, epoch)
-        self.duration = duration
-        self.cumulative_rewards = cumulative_rewards
-        self.epoch = epoch
-
-
-class RSTimeOut(ResultStat):
-    def __init__(self, duration: float, cumulative_rewards: float, epoch: int):
-        super().__init__(duration, cumulative_rewards, epoch)
-        self.duration = duration
-        self.cumulative_rewards = cumulative_rewards
-        self.epoch = epoch
-
-
-class TestData(object):
-    def __init__(self, phase):
-        self.phase = phase
-        self.results = []
-
-    def push(self, result: ResultStat, humans: list, global_time: float):
-        if isinstance(result, RSSuccess):
-            if self.phase in ['val', 'test']:
-                result.human_times(global_time=global_time, humans=humans)
-                self.results.append(result)
-            else:
-                self.results.append(result)
-
-    @property
-    def size(self):
-        return len(self.results)
+def get_path_length(speed, delta_t):
+    return sum(speed) * delta_t
 
 
 class Explorer(object):
@@ -83,83 +37,128 @@ class Explorer(object):
     def update_target_model(self, target_model):
         self.target_model = copy.deepcopy(target_model)
 
-    # @profile
+    def run_episode(self, phase):
+        self.robot.policy.set_phase(phase)
+
+        too_close = 0
+        min_dist = []
+
+        ob = self.env.reset(phase)
+        done = False
+        rewards = []
+        actions = []
+
+        while not done:
+            action = self.robot.act(ob)
+            ob, reward, done, info = self.env.step(action)
+            self.env.render()
+
+            actions.append(action)
+            rewards.append(reward)
+
+            if isinstance(info, Danger):
+                too_close += 1
+                min_dist.append(info.min_dist)
+
+        avg_rewards = sum([pow(self.gamma, t * self.robot.time_step * self.robot.v_pref)
+                           * reward for t, reward in enumerate(rewards)])
+
+        if isinstance(info, ReachGoal):
+            human_times = average(self.env.get_human_times())
+            extra_info = 'success, avg human time: {:.2f}'.format(human_times)
+        elif isinstance(info, Collision):
+            extra_info = 'collision'
+        elif isinstance(info, Timeout):
+            extra_info = 'time out'
+        else:
+            raise ValueError('Invalid end signal from environment')
+
+        speed = get_speed(actions)
+        path_length = get_path_length(speed, self.robot.time_step)
+        jerk = sum(get_jerk(get_acceleration(speed, self.robot.time_step), self.robot.time_step)) / len(actions)
+
+        logging.info('{:<5} has {}, nav time: {:.2f}, nav path length: {:.2f}, jerk: {:.2f}, total reward: {:.4f}'.
+                     format(phase.upper(), extra_info,  self.env.global_time, path_length, jerk, avg_rewards))
+
+        logging.info('Frequency of being in danger: %.2f and average min separate distance in danger: %.2f',
+                     too_close / self.env.global_time, average(min_dist))
+
+
     def run_k_episodes(self, k, phase, update_memory=False, imitation_learning=False, episode=None,
                        print_failure=False):
         self.robot.policy.set_phase(phase)
-
-        X = TestData(phase)
+        success_times = []
+        collision_times = []
+        timeout_times = []
+        success = 0
+        collision = 0
+        timeout = 0
         too_close = 0
         min_dist = []
+        cumulative_rewards = []
+        collision_cases = []
+        timeout_cases = []
         for i in range(k):
             ob = self.env.reset(phase)
             done = False
             states = []
             actions = []
-            human_states = []
             rewards = []
+            human_states = []
             while not done:
                 action = self.robot.act(ob)
-                human_state, reward, done, info = self.env.step(action)
-                actions.append(action)
+                ob, reward, done, info = self.env.step(action)
+
                 states.append(self.robot.policy.last_state)
-                human_states.append(human_state)
+                human_states.append(ob)
+                actions.append(action)
                 rewards.append(reward)
 
                 if isinstance(info, Danger):
                     too_close += 1
                     min_dist.append(info.min_dist)
 
-            cumalative_rewards = sum([pow(self.gamma, t * self.robot.time_step * self.robot.v_pref)
-                                            * reward for t, reward in enumerate(rewards)])
-
             if isinstance(info, ReachGoal):
-                if isinstance(actions[0], ActionXY):
-                    speed = np.asarray([norm(np.array([action.vx, action.vy]), 2) for action in actions])
-                else:
-                    speed = np.asarray([abs(action.v) for action in actions])
-                x = RSSuccess(self.env.global_time, cumalative_rewards, i, speed, self.robot.time_step)
+                success += 1
+                success_times.append(self.env.global_time)
             elif isinstance(info, Collision):
-                x = RSCollision(self.env.global_time, cumalative_rewards, i)
+                collision += 1
+                collision_cases.append(i)
+                collision_times.append(self.env.global_time)
             elif isinstance(info, Timeout):
-                x = RSTimeOut(self.env.time_limit, cumalative_rewards, i)
+                timeout += 1
+                timeout_cases.append(i)
+                timeout_times.append(self.env.time_limit)
             else:
                 raise ValueError('Invalid end signal from environment')
 
-            # if update_memory:
-            #     if isinstance(info, ReachGoal) or isinstance(info, Collision):
-            #         # only add positive(success) or negative(collision) experience in experience set
-            self.update_memory(states, human_states, rewards, imitation_learning)
+            if update_memory:
+                if isinstance(info, ReachGoal) or isinstance(info, Collision):
+                    # only add positive(success) or negative(collision) experience in experience set
+                    self.update_memory(states, human_states, actions, rewards, imitation_learning)
 
-            X.push(x, global_time=self.env.global_time, humans=self.env.humans)
+            cumulative_rewards.append(sum([pow(self.gamma, t * self.robot.time_step * self.robot.v_pref)
+                                           * reward for t, reward in enumerate(rewards)]))
 
-        success_cases = [x.epoch for x in X.results if isinstance(x, RSSuccess)] #reduce(lambda a, _: a + 1, (x for x in test_results if isinstance(x, RSSuccess)), 0)
-        collision_cases = [x.epoch for x in X.results if isinstance(x, RSCollision)]
-        avg_nav_time = sum([x.duration for x in X.results if isinstance(x, RSSuccess)]) / len(success_cases) if len(success_cases) else 0
-
-        avg_nav_length = sum([vel * self.robot.time_step for vel in x.speed for x in X.results if isinstance(x, RSSuccess)]) / len(success_cases) if len(success_cases) else 0
-        avg_cumulative_rewards = average([x.cumulative_rewards for x in X.results])
+        success_rate = success / k
+        collision_rate = collision / k
+        assert success + collision + timeout == k
+        avg_nav_time = sum(success_times) / len(success_times) if success_times else self.env.time_limit
 
         extra_info = '' if episode is None else 'in episode {} '.format(episode)
-        logging.info('{:<5} {}has success rate: {:.2f}, collision rate: {:.2f}, nav time: {:.2f}, nav length: {:.2f}, total reward: {:.4f}'.
-                     format(phase.upper(), extra_info, len(success_cases) / k, len(collision_cases) / k, avg_nav_time, avg_nav_length,
-                            avg_cumulative_rewards))
-
+        logging.info('{:<5} {}has success rate: {:.2f}, collision rate: {:.2f}, nav time: {:.2f}, total reward: {:.4f}'.
+                     format(phase.upper(), extra_info, success_rate, collision_rate, avg_nav_time,
+                            average(cumulative_rewards)))
         if phase in ['val', 'test']:
-            if len(X.results) > 0:
-                total_time = sum([x.duration for x in X.results]) * self.robot.time_step
-                avg_jerk = average([x.jerk.mean() for x in X.results if isinstance(x, RSSuccess)])
-                avg_human_times = average([x.avg_human_time for x in X.results if isinstance(x, RSSuccess)])
-                logging.info('Frequency of being in danger: {:.2f} and average min separate distance in danger: {:.2f}, '
-                             'jerk: {:.4f}, human nav time: {:.2f}'.format(
-                             too_close / total_time, average(min_dist), avg_jerk, avg_human_times))
+            total_time = sum(success_times + collision_times + timeout_times) * self.robot.time_step
+            logging.info('Frequency of being in danger: %.2f and average min separate distance in danger: %.2f',
+                         too_close / total_time, average(min_dist))
 
         if print_failure:
-            timeout_cases = [x.epoch for x in X.results if isinstance(x.info, Timeout)]
             logging.info('Collision cases: ' + ' '.join([str(x) for x in collision_cases]))
             logging.info('Timeout cases: ' + ' '.join([str(x) for x in timeout_cases]))
 
-    def update_memory(self, states, human_states, rewards, imitation_learning=False):
+    def update_memory(self, states, human_states, actions, rewards, imitation_learning=False):
         if self.memory is None or self.gamma is None:
             raise ValueError('Memory or gamma value is not set!')
 
@@ -170,7 +169,6 @@ class Explorer(object):
             if imitation_learning:
                 h_s = torch.Tensor([(s.px, s.py, s.vx, s.vy, s.radius) for s in state.human_states]).to(
                     self.device)
-
                 # define the value of states in IL as cumulative discounted rewards, which is the same in RL
                 state = self.target_policy.transform(state)
                 # value = pow(self.gamma, (len(states) - 1 - i) * self.robot.time_step * self.robot.v_pref)
@@ -179,7 +177,6 @@ class Explorer(object):
             else:
                 h_s = torch.Tensor([(s.px, s.py, s.vx, s.vy, s.radius) for s in human_states[i]]).to(
                     self.device)
-
                 if i == len(states) - 1:
                     # terminal state
                     value = reward
@@ -198,7 +195,6 @@ class Explorer(object):
             # if human_num != 5:
             #     padding = torch.zeros((5 - human_num, feature_size))
             #     state = torch.cat([state, padding])
-
             self.memory.push((state, value, h_s))
 
 

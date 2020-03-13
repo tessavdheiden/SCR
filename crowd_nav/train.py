@@ -155,8 +155,8 @@ def main():
         robot.policy.set_epsilon(epsilon)
 
         # evaluate the model
-        if episode % evaluation_interval == 0 and episode != 0:
-            explorer.run_k_episodes(env.case_size['val'], 'val', episode=episode)
+        if episode % evaluation_interval == 0:
+            explorer.run_episode('val')
 
         # sample k episodes into memory and optimize over the generated memory
         explorer.run_k_episodes(sample_episodes, 'train', update_memory=True, episode=episode)

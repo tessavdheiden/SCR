@@ -427,7 +427,7 @@ class CrowdSim(gym.Env):
 
     def render(self, mode='human'):
         import matplotlib.pylab as plt
-        plt.ion()
+        #plt.ion()
 
         if not self.fig:
             fig, ax = plt.subplots(figsize=(7, 7))
@@ -441,7 +441,7 @@ class CrowdSim(gym.Env):
                 human_circle = plt.Circle(human.get_position(), human.radius, fill=False, color='b')
                 self.ax.add_artist(human_circle)
             self.ax.add_artist(plt.Circle(self.robot.get_position(), self.robot.radius, fill=True, color='r'))
-            plt.savefig("data/output/state.png") #plt.show(block=False)
+            plt.pause(0.001)
             self.ax.clear()
             self.ax.set_xlim(-4, 4)
             self.ax.set_ylim(-4, 4)
