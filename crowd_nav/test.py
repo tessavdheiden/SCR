@@ -9,6 +9,7 @@ import gym
 from crowd_nav.utils.explorer import Explorer
 from crowd_nav.policy.policy_factory import policy_factory
 from crowd_sim.envs.utils.robot import Robot
+from crowd_sim.envs.utils.human import Human
 from crowd_sim.envs.policy.orca import ORCA
 from crowd_sim.envs.visualization.observer_subscriber import notify
 from crowd_sim.envs.visualization.plotter import Plotter
@@ -62,17 +63,24 @@ def main():
         policy.get_model().load_state_dict(torch.load(model_weights))
 
     # configure environment
-    env_config = configparser.RawConfigParser()
-    env_config.read(args.env_config)
     env = gym.make('CrowdSim-v0')
-    env.configure(env_config)
+    env.configure(args.env_config)
+
+    robot = Robot()
+    robot.configure(args.env_config, 'robot')
+    robot.set_policy(policy)
+    env.set_robot(robot)
+
+    humans = [Human() for _ in range(env.human_num)]
+    for human in humans:
+        human.configure(args.env_config, 'humans')
+    env.set_humans(humans)
+
     if args.square:
         env.test_sim = 'square_crossing'
     if args.circle:
         env.test_sim = 'circle_crossing'
-    robot = Robot(env_config, 'robot')
-    robot.set_policy(policy)
-    env.set_robot(robot)
+
     explorer = Explorer(env, robot, device, gamma=0.9)
 
     policy.set_phase(args.phase)

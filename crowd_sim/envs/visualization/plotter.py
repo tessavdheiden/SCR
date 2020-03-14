@@ -59,9 +59,9 @@ class Plotter(ObservationSubscriber):
                     ax.add_artist(time)
             if k != 0:
                 nav_direction = plt.Line2D((robot_positions[k - 1][0], robot_positions[k][0]),
-                                           (robot_positions[k - 1][0], robot_positions[k][0]),
+                                           (robot_positions[k - 1][1], robot_positions[k][1]),
                                            color=robot_color, ls='solid')
-                human_directions = [plt.Line2D((human_positions[k - 1][i][1], human_positions[k][i][1]),
+                human_directions = [plt.Line2D((human_positions[k - 1][i][0], human_positions[k][i][0]),
                                                (human_positions[k - 1][i][1], human_positions[k][i][1]),
                                                color=cmap(i), ls='solid')
                                     for i in range(human_num)]

@@ -79,6 +79,11 @@ def main():
     robot.configure(args.env_config, 'robot')
     env.set_robot(robot)
 
+    humans = [Human() for _ in range(env.human_num)]
+    for human in humans:
+        human.configure(args.env_config, 'humans')
+    env.set_humans(humans)
+
     # read training parameters
     if args.train_config is None:
         parser.error('Train config has to be specified for a trainable network')

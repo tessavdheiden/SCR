@@ -52,7 +52,7 @@ python test.py --policy sarl --model_dir data/output --phase test --visualize --
 4. Visualize a test case.
 ```
 python test.py --policy sarl --model_dir data/output --phase test --visualize --test_case 0
-python test.py --policy sarl --model_dir data/output --phase test --visualize --test_case 0 --video_file data/output/episode.mp4
+--policy sarl --model_dir data/output --phase test --visualize --test_case 0 --video_file data/output/video.mp4 --plot_file data/output/plot.png 
 
 ```
 5. Plot training curve.
