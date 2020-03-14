@@ -18,8 +18,8 @@ from crowd_sim.envs.visualization.video import Video
 
 def main():
     parser = argparse.ArgumentParser('Parse configuration file')
-    parser.add_argument('--env_config', type=str, default='configs/env.config')
-    parser.add_argument('--policy_config', type=str, default='configs/policy.config')
+    parser.add_argument('--env_config', type=str, default='data/output/env.config')
+    parser.add_argument('--policy_config', type=str, default='data/output/policy.config')
     parser.add_argument('--policy', type=str, default='sarl')
     parser.add_argument('--model_dir', type=str, default=None)
     parser.add_argument('--il', default=False, action='store_true')
@@ -97,6 +97,7 @@ def main():
     robot.print_info()
 
     if args.visualize:
+        import matplotlib.pyplot as plt
         ob = env.reset(args.phase, args.test_case)
         done = False
         last_pos = np.array(robot.get_position())
@@ -116,7 +117,9 @@ def main():
 
             notify(observation_subscribers, env.state)
             if args.visualize:
-                env.render()
+                ax, cmap = env.render()
+                robot.policy.draw_observation(ax, ob + [robot.get_observable_state()], cmap)
+                plt.pause(.0001)
 
             current_pos = np.array(robot.get_position())
             logging.debug('Speed: %.2f', np.linalg.norm(current_pos - last_pos) / robot.time_step)

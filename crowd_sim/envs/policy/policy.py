@@ -47,3 +47,7 @@ class Policy(object):
             return True
         else:
             return False
+
+    def draw_observation(self, ax, ob):
+        return
+

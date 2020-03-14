@@ -431,17 +431,22 @@ class CrowdSim(gym.Env):
             fig, ax = plt.subplots(figsize=(7, 7))
             self.fig = fig
             self.ax = ax
-            self.ax.set_xlim(-4, 4)
-            self.ax.set_ylim(-4, 4)
+            self.cmap = plt.cm.get_cmap('hsv', 10)
 
         if mode == 'human':
-            for human in self.humans:
-                human_circle = plt.Circle(human.get_position(), human.radius, fill=False, color='b')
-                self.ax.add_artist(human_circle)
-            self.ax.add_artist(plt.Circle(self.robot.get_position(), self.robot.radius, fill=True, color='r'))
-            plt.pause(0.001)
             self.ax.clear()
-            self.ax.set_xlim(-4, 4)
-            self.ax.set_ylim(-4, 4)
+            for i, human in enumerate(self.humans):
+                human_circle = plt.Circle(human.get_position(), human.radius, fill=False, color=self.cmap(i))
+                self.ax.add_artist(human_circle)
+
+            self.ax.add_artist(plt.Circle(self.robot.get_position(), self.robot.radius, fill=True, color='r'))
+
+            self.ax.set_xlim(-6, 6)
+            self.ax.set_ylim(-6, 6)
+            return self.ax, self.cmap
         else:
             raise NotImplementedError
+
+
+
+

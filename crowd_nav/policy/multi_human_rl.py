@@ -162,3 +162,41 @@ class MultiHumanRL(CADRL):
 
         return torch.from_numpy(np.concatenate(occupancy_maps, axis=0)).float()
 
+    def make_patches(self, om, color):
+        import matplotlib.patches as patches
+        locations = [(-1, -1), (0, -1), (-1, 0), (0, 0)]
+
+        lst = []
+        for i in range(self.cell_num ** 2):
+            cell = patches.Rectangle(locations[i], self.cell_size, self.cell_size, color=color, alpha=np.minimum(np.maximum(om[i], .2), .6))
+            lst.append(cell)
+        return lst
+
+    def make_arrow(self, ob, color):
+        import matplotlib.patches as patches
+        theta = np.arctan2(ob.vy, ob.vx)
+        orientation = ((0, 0), (ob.radius * np.cos(theta), ob.radius * np.sin(theta)))
+        return patches.FancyArrowPatch(*orientation, color=color, arrowstyle=patches.ArrowStyle("->", head_length=4, head_width=2))
+
+    def draw_observation(self, ax, ob, cmap):
+        import matplotlib as mpl
+        human_num = len(ob[:-1])
+        oms = self.build_occupancy_maps(ob[:-1], ob[-1])
+
+        for i in range(human_num):
+            (px, py) = ob[i].position
+            theta = np.arctan2(ob[i].vy, ob[i].vx)
+            r = mpl.transforms.Affine2D().rotate(theta)
+            t = mpl.transforms.Affine2D().translate(px, py)
+            tra = r + t + ax.transData
+            cells = self.make_patches(oms[i], cmap(i))
+            arrow = self.make_arrow(ob[i], cmap(i))
+            arrow.set_transform(t + ax.transData)
+
+            ax.add_artist(arrow)
+            for c in cells:
+                c.set_transform(tra)
+                ax.add_artist(c)
+
+
+
