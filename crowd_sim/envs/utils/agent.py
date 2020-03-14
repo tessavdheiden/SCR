@@ -2,23 +2,36 @@ import numpy as np
 from numpy.linalg import norm
 import abc
 import logging
+import configparser
+
 from crowd_sim.envs.policy.policy_factory import policy_factory
 from crowd_sim.envs.utils.action import ActionXY, ActionRot
 from crowd_sim.envs.utils.state import ObservableState, FullState
 
 
+class AgentConfig():
+    def __init__(self, file, section):
+        config = configparser.RawConfigParser()
+        config.read(file)
+        self.visible = config.getboolean(section, 'visible')
+        self.v_pref = config.getfloat(section, 'v_pref')
+        self.radius = config.getfloat(section, 'radius')
+        self.policy = config.get(section, 'policy')
+        self.sensor = config.get(section, 'sensor')
+
+
 class Agent(object):
-    def __init__(self, config, section):
+    def __init__(self):
         """
         Base class for robot and human. Have the physical attributes of an agent.
 
         """
-        self.visible = config.getboolean(section, 'visible')
-        self.v_pref = config.getfloat(section, 'v_pref')
-        self.radius = config.getfloat(section, 'radius')
-        self.policy = policy_factory[config.get(section, 'policy')]()
-        self.sensor = config.get(section, 'sensor')
-        self.kinematics = self.policy.kinematics if self.policy is not None else None
+        self.visible = None
+        self.v_pref = None
+        self.radius = None
+        self.policy = None
+        self.sensor = None
+        self.kinematics = None
         self.px = None
         self.py = None
         self.gx = None
@@ -27,6 +40,19 @@ class Agent(object):
         self.vy = None
         self.theta = None
         self.time_step = None
+
+    def configure(self, file, section):
+        """
+        config is a parser in this case
+        """
+        config = AgentConfig(file, section)
+        self.visible = config.visible
+        self.v_pref = config.v_pref
+        self.radius = config.radius
+        self.policy = policy_factory[config.policy]()
+        self.sensor = config.sensor
+        self.kinematics = self.policy.kinematics if self.policy is not None else None
+
 
     def print_info(self):
         logging.info('Agent is {} and has {} kinematic constraint'.format(

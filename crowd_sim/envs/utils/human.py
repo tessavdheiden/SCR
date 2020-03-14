@@ -3,8 +3,8 @@ from crowd_sim.envs.utils.state import JointState
 
 
 class Human(Agent):
-    def __init__(self, config, section):
-        super().__init__(config, section)
+    def __init__(self):
+        super().__init__()
 
     def act(self, ob):
         """

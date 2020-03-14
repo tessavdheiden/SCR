@@ -8,6 +8,7 @@ import torch
 import gym
 import git
 from crowd_sim.envs.utils.robot import Robot
+from crowd_sim.envs.utils.human import Human
 from crowd_nav.utils.trainer import Trainer
 from crowd_nav.utils.memory import ReplayMemory
 from crowd_nav.utils.explorer import Explorer
@@ -71,11 +72,11 @@ def main():
     policy.set_device(device)
 
     # configure environment
-    env_config = configparser.RawConfigParser()
-    env_config.read(args.env_config)
     env = gym.make('CrowdSim-v0')
-    env.configure(env_config)
-    robot = Robot(env_config, 'robot')
+    env.configure(args.env_config)
+
+    robot = Robot()
+    robot.configure(args.env_config, 'robot')
     env.set_robot(robot)
 
     # read training parameters
