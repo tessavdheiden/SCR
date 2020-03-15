@@ -1,6 +1,7 @@
 import logging
 import torch.nn as nn
 import torch.optim as optim
+from torch.distributions import Normal
 from torch.autograd import Variable
 from torch.utils.data import DataLoader
 from crowd_nav.empowerment.source import Source
@@ -44,13 +45,17 @@ class Trainer(object):
 
                 # self.optimizer.step()
                 self.optimizer.zero_grad()
-                human_actions = self.source.select_action(human_state)
-                human_next_state = self.transition.select_state(human_actions, human_state)
-                human_actions_planning = self.planning.select_action(human_state, human_next_state)
-                MI = -(human_actions - human_actions_planning).mean()
+                mu, sigma = self.source(human_state)
+                dist_source = Normal(mu, sigma)
+                sample = dist_source.rsample()
+                human_next_state = self.transition.select_state(sample, human_state)
+                mu_p, sigma_p = self.planning(human_state, human_next_state)
+                dist_plan = Normal(mu_p, sigma_p)
+
+                MI = (dist_plan.log_prob(sample) - dist_source.log_prob(sample)).mean()
 
                 outputs = self.model(inputs)
-                loss = self.criterion(outputs, values) + MI
+                loss = self.criterion(outputs, values) - MI
                 loss.backward()
                 self.optimizer.step()
 
@@ -74,13 +79,17 @@ class Trainer(object):
             human_state = Variable(human_state)
 
             self.optimizer.zero_grad()
-            human_actions = self.source.select_action(human_state)
-            human_next_state = self.transition.select_state(human_actions, human_state)
-            human_actions_planning = self.planning.select_action(human_state, human_next_state)
-            MI = -(human_actions - human_actions_planning).mean()
+            mu, sigma = self.source(human_state)
+            dist_source = Normal(mu, sigma)
+            sample = dist_source.rsample()
+            human_next_state = self.transition.select_state(sample, human_state)
+            mu_p, sigma_p = self.planning(human_state, human_next_state)
+            dist_plan = Normal(mu_p, sigma_p)
+
+            MI = (dist_plan.log_prob(sample) - dist_source.log_prob(sample)).mean()
 
             outputs = self.model(inputs)
-            loss = self.criterion(outputs, values) + MI
+            loss = self.criterion(outputs, values) - MI
             loss.backward()
             self.optimizer.step()
             losses += loss.data.item()

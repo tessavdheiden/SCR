@@ -3,6 +3,7 @@ import copy
 import torch
 import numpy as np
 from numpy.linalg import norm
+import matplotlib.pyplot as plt
 
 from crowd_sim.envs.utils.info import *
 from crowd_sim.envs.utils.action import *
@@ -52,6 +53,7 @@ class Explorer(object):
             action = self.robot.act(ob)
             ob, reward, done, info = self.env.step(action)
             self.env.render()
+            plt.pause(.001)
 
             actions.append(action)
             rewards.append(reward)
@@ -59,6 +61,8 @@ class Explorer(object):
             if isinstance(info, Danger):
                 too_close += 1
                 min_dist.append(info.min_dist)
+
+        plt.close()
 
         avg_rewards = sum([pow(self.gamma, t * self.robot.time_step * self.robot.v_pref)
                            * reward for t, reward in enumerate(rewards)])
