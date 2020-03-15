@@ -423,26 +423,30 @@ class CrowdSim(gym.Env):
 
         return ob, reward, done, info
 
+    def reset_axis(self):
+        assert self.ax
+        self.ax.clear()
+        goal = mlines.Line2D([0], [self.circle_radius], color='red', marker='*', linestyle='None', markersize=15, label='Goal')
+        self.ax.add_artist(goal)
+        self.ax.set_xlim(-6, 6)
+        self.ax.set_ylim(-6, 6)
+
     def render(self, mode='human'):
         import matplotlib.pylab as plt
-        #plt.ion()
 
         if not self.fig:
             fig, ax = plt.subplots(figsize=(7, 7))
             self.fig = fig
             self.ax = ax
-            self.cmap = plt.cm.get_cmap('hsv', 10)
+            self.cmap = plt.cm.get_cmap('hsv', 5)
 
         if mode == 'human':
-            self.ax.clear()
+            self.reset_axis()
             for i, human in enumerate(self.humans):
                 human_circle = plt.Circle(human.get_position(), human.radius, fill=False, color=self.cmap(i))
                 self.ax.add_artist(human_circle)
+            self.ax.add_artist(plt.Circle(self.robot.get_position(), self.robot.radius, fill=True, color='k', fc='orange'))
 
-            self.ax.add_artist(plt.Circle(self.robot.get_position(), self.robot.radius, fill=True, color='r'))
-
-            self.ax.set_xlim(-6, 6)
-            self.ax.set_ylim(-6, 6)
             return self.ax, self.cmap
         else:
             raise NotImplementedError
