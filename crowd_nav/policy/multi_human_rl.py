@@ -164,11 +164,13 @@ class MultiHumanRL(CADRL):
 
     def make_patches(self, om, color):
         import matplotlib.patches as patches
-        locations = [(-1, -1), (0, -1), (-1, 0), (0, 0)]
+        from itertools import product
+        #locations = [(-1, -1), (0, -1), (-1, 0), (0, 0)]
+        locations = list(product([i - self.cell_num // 2 for i in range(self.cell_num)], repeat=2))
 
         lst = []
         for i in range(self.cell_num ** 2):
-            cell = patches.Rectangle(locations[i], self.cell_size, self.cell_size, color=color, alpha=np.minimum(np.maximum(om[i], .2), .6))
+            cell = patches.Rectangle(locations[i], self.cell_size, self.cell_size, color=color, alpha=np.minimum(np.maximum(om[i].item(), .2), .6))
             lst.append(cell)
         return lst
 
