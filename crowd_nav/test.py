@@ -118,7 +118,7 @@ def main():
             notify(observation_subscribers, env.state)
             if args.visualize:
                 ax, cmap = env.render()
-                robot.policy.draw_observation(ax, ob + [robot.get_observable_state()], cmap)
+                #robot.policy.draw_observation(ax, env.state, True)
                 plt.pause(.0001)
 
             current_pos = np.array(robot.get_position())
@@ -128,7 +128,7 @@ def main():
         if args.plot_file:
             plotter.save()
         if args.video_file:
-            video.make()
+            video.make(robot.policy.draw_observation)
 
         logging.info('It takes %.2f seconds to finish. Final status is %s', env.global_time, info)
         if robot.visible and info == 'reach goal':

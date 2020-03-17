@@ -76,7 +76,7 @@ class Video(ObservationSubscriber):
         self.text = plt.text(-1, 5, 'Time: {}'.format(0), fontsize=16)
         self.ax.add_artist(self.text)
 
-    def make(self):
+    def make(self, draw_func=None):
         self.make_ax()
         self.add_robot_circle()
         self.add_goal()
@@ -84,6 +84,7 @@ class Video(ObservationSubscriber):
         self.add_robot_orientation()
         self.add_human_orientations()
         self.add_text()
+        self.artists.append(draw_func(self.ax, self.frames[0], True))
 
         time_step = .25
 
@@ -106,6 +107,9 @@ class Video(ObservationSubscriber):
                 self.human_ori[i].set_transform(tra)
 
             self.text.set_text('Time: {:.2f}'.format(frame_num * time_step))
+
+            if draw_func:
+                draw_func(self.ax, self.frames[frame_num])
 
         def plot_value_heatmap():
             assert self.robot.kinematics == 'holonomic'
