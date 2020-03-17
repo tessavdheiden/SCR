@@ -164,9 +164,7 @@ class MultiHumanRL(CADRL):
 
     def make_patches(self, om, color):
         import matplotlib.patches as patches
-        from itertools import product
-        #locations = [(-1, -1), (0, -1), (-1, 0), (0, 0)]
-        locations = list(product([i - self.cell_num // 2 for i in range(self.cell_num)], repeat=2))
+        locations = [(i % self.cell_num - self.cell_num // 2, i // self.cell_num  - self.cell_num // 2) for i in range(self.cell_num ** 2)]
 
         lst = []
         for i in range(self.cell_num ** 2):
