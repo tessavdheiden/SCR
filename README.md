@@ -1,20 +1,18 @@
 # CrowdNav
-This repository contains the codes for our ICRA 2018 paper. For more details, please refer to the paper
-[Crowd-Robot Interaction: Crowd-aware Robot Navigation with Attention-based Deep Reinforcement Learning](https://arxiv.org/abs/1809.08835).
-
+This repository contains the code for my paper. For more details, please refer to the paper
+[Social navigation with human empowerment driven reinforcement learning](https://arxiv.org/abs/1809.08835).
 
 
 ## Abstract
-Mobility in an effective and socially-compliant manner is an essential yet challenging task for robots operating in crowded spaces.
-Recent works have shown the power of deep reinforcement learning techniques to learn socially cooperative policies.
-However, their cooperation ability deteriorates as the crowd grows since they typically relax the problem as a one-way Human-Robot interaction problem.
-In this work, we want to go beyond first-order Human-Robot interaction and more explicitly model Crowd-Robot Interaction (CRI).
-We propose to (i) rethink pairwise interactions with a self-attention mechanism, and
-(ii) jointly model Human-Robot as well as Human-Human interactions in the deep reinforcement learning framework.
-Our model captures the Human-Human interactions occurring in dense crowds that indirectly affects the robot's anticipation capability.
-Our proposed attentive pooling mechanism learns the collective importance of neighboring humans with respect to their future states.
-Various experiments demonstrate that our model can anticipate human dynamics and navigate in crowds with time efficiency,
-outperforming state-of-the-art methods.
+The next generation of mobile robots needs to be socially-compliant to be accepted by humans. As simple as this task may seem, 
+defining compliance formally is not trivial. Yet, classical reinforcement learning (RL) relies upon hard-coded reward signals.
+In this work, we go beyond this approach and provide the agent with intrinsic motivation using empowerment. 
+Empowerment maximizes the influence of an agent on its near future and has been shown to be a good model for biological 
+behaviors. It also has been used for artificial agents to learn complicated and generalized actions. Self-empowerment 
+maximizes the influence of an agent on its future. On the contrary, our robot strives for the empowerment of people in 
+its environment, so they are not disturbed by the robot when pursuing their goals. 
+We show that our robot has a positive influence on humans, as it minimizes the travel time and distance of humans while moving efficiently to its own goal.
+The method can be used in any multi-agent system that requires a robot to solve a particular task involving humans interactions.
 
 
 ## Method Overview

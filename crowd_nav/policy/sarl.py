@@ -87,3 +87,25 @@ class SARL(MultiHumanRL):
 
     def get_attention_weights(self):
         return self.model.attention_weights
+
+    def make_text(self, h, ax):
+        import matplotlib.pyplot as plt
+        self.scores[h] = plt.text(-5.5, 5 - 0.5 * h, 'Human {}: '.format(h))
+        ax.add_artist(self.scores[h])
+
+    def draw_attention(self, ax, ob, init=False):
+        if self.model.attention_weights is not None:
+            human_num = len(ob[1])
+            if init:
+                self.scores = [None for _ in range(human_num)]
+                for h in range(human_num):
+                    self.make_text(h, ax)
+            else:
+                for h in range(human_num):
+                    batch_next_states = torch.cat([torch.Tensor([ob[0] + next_human_state]).to(self.device)
+                                                   for next_human_state in ob[1]], dim=0)
+                    self.model(self.rotate(batch_next_states).unsqueeze(0))
+                    attention = self.get_attention_weights()
+                    self.scores[h].set_text('human {}: {:.2f}'.format(h, attention[h]))
+
+
