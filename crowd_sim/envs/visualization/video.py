@@ -1,4 +1,5 @@
 import numpy as np
+import matplotlib as mpl
 import matplotlib.pylab as plt
 import matplotlib.lines as mlines
 from matplotlib import patches
@@ -12,6 +13,8 @@ class Video(ObservationSubscriber):
         self.file = file
         self.frames = []
         self.attention_weights = None
+        self.human_num = None
+        self.artists = list()
 
     def on_observation(self, observation):
         frame = self.extract_frame(observation)
@@ -20,90 +23,89 @@ class Video(ObservationSubscriber):
     def extract_frame(self, observation):
         return observation
 
-    def make(self):
+    def make_ax(self):
         fig, ax = plt.subplots(figsize=(7, 7))
         ax.tick_params(labelsize=16)
         ax.set_xlim(-6, 6)
         ax.set_ylim(-6, 6)
         ax.set_xlabel('x(m)', fontsize=16)
         ax.set_ylabel('y(m)', fontsize=16)
+        self.ax = ax
+        self.fig = fig
 
+    def add_robot_circle(self):
+        position0 = self.frames[0][0].position
+        radius = self.frames[0][0].radius
+        self.robot = plt.Circle(position0, radius, fill=True, fc='orange', color='k')
+        self.ax.add_artist(self.robot)
+
+    def add_human_circles(self):
         x_offset = 0.11
         y_offset = 0.11
-        goal_color = 'red'
-        robot_color = 'yellow'
-        arrow_style = patches.ArrowStyle("->", head_length=4, head_width=2)
-        arrow_color = 'red'
+        self.human_num = len(self.frames[0][1])
+        positions0 = [self.frames[0][1][i].position for i in range(self.human_num)]
+        self.radii = [self.frames[0][1][i].radius for i in range(self.human_num)]
+        self.humans = [plt.Circle(position, self.radii [i], fill=False) for i, position in enumerate(positions0)]
+        self.human_numbers = [plt.text(self.humans[i].center[0] - x_offset, self.humans[i].center[1] - y_offset, str(i),
+                                  color='black', fontsize=12) for i in range(self.human_num)]
 
-        # add robot and its goal
-        robot_positions = [states[0].position + (states[0].theta, states[0].vx, states[0].vy) for states in self.frames]
-        robot_radius = self.frames[0][0].radius
-        goal = mlines.Line2D([0], [4], color=goal_color, marker='*', linestyle='None', markersize=15, label='Goal')
-        robot = plt.Circle(robot_positions[0], robot_radius, fill=True, color=robot_color)
-        ax.add_artist(robot)
-        ax.add_artist(goal)
-        plt.legend([robot, goal], ['Robot', 'Goal'], fontsize=16)
+        for i, human in enumerate(self.humans):
+           self.ax.add_artist(human)
+           self.ax.add_artist(self.human_numbers[i])
 
-        # add humans and their numbers
-        human_positions = [[state.position + (state.theta, state.vx, state.vy) for state in states[1]] for states in self.frames]
-        human_num = len(human_positions[0])
-        human_radii = [state.radius for state in self.frames[0][1]]
-        humans = [plt.Circle(human_positions[0][i], human_radii[i], fill=False)
-                  for i in range(human_num)]
-        human_numbers = [plt.text(humans[i].center[0] - x_offset, humans[i].center[1] - y_offset, str(i),
-                                  color='black', fontsize=12) for i in range(human_num)]
-        for i, human in enumerate(humans):
-            ax.add_artist(human)
-            ax.add_artist(human_numbers[i])
+    def add_goal(self):
+        goal = mlines.Line2D([0], [4], color='red', marker='*', linestyle='None', markersize=15, label='Goal')
+        self.ax.add_artist(goal)
 
-        # add time annotation
-        time = plt.text(-1, 5, 'Time: {}'.format(0), fontsize=16)
-        ax.add_artist(time)
+    def add_robot_orientation(self):
+        theta = np.arctan2(self.frames[0][0].vy, self.frames[0][0].vx)
+        orientation = ((0, 0), (self.frames[0][0].radius * np.cos(theta), self.frames[0][0].radius * np.sin(theta)))
+        self.robot_ori = patches.FancyArrowPatch(*orientation, color='k', arrowstyle=patches.ArrowStyle("->", head_length=4, head_width=2))
+        self.ax.add_artist(self.robot_ori)
 
-        # compute attention scores
-        if self.attention_weights is not None:
-            attention_scores = [
-                plt.text(-5.5, 5 - 0.5 * i, 'Human {}: {:.2f}'.format(i + 1, self.attention_weights[0][i]),
-                         fontsize=16) for i in range(human_num)]
+    def add_human_orientations(self):
+        self.human_ori = [None] * self.human_num
+        for i, human in enumerate(self.humans):
+            theta = np.arctan2(self.frames[0][1][i].vy, self.frames[0][1][i].vx)
+            orientation = ((0, 0), (self.frames[0][1][i].radius * np.cos(theta), self.frames[0][1][i].radius * np.sin(theta)))
+            self.human_ori[i] = patches.FancyArrowPatch(*orientation, color='k',
+                                                     arrowstyle=patches.ArrowStyle("->", head_length=4, head_width=2))
+            self.ax.add_artist(self.human_ori[i])
 
-        # compute orientation in each step and use arrow to show the direction
-        orientations = []
-        for i in range(human_num + 1):
-            orientation = []
-            for state in self.frames:
-                agent_state = state[0] if i == 0 else state[1][i - 1]
-                radius = robot_radius if i == 0 else human_radii[i - 1]
+    def add_text(self):
+        self.text = plt.text(-1, 5, 'Time: {}'.format(0), fontsize=16)
+        self.ax.add_artist(self.text)
 
-                theta = np.arctan2(agent_state.vy, agent_state.vx)
-                orientation.append(((agent_state.px, agent_state.py), (agent_state.px + radius * np.cos(theta),
-                                                                       agent_state.py + radius * np.sin(theta))))
-            orientations.append(orientation)
-        arrows = [patches.FancyArrowPatch(*orientation[0], color=arrow_color, arrowstyle=arrow_style)
-                  for orientation in orientations]
-        for arrow in arrows:
-            ax.add_artist(arrow)
-        global_step = 0
+    def make(self):
+        self.make_ax()
+        self.add_robot_circle()
+        self.add_goal()
+        self.add_human_circles()
+        self.add_robot_orientation()
+        self.add_human_orientations()
+        self.add_text()
+
         time_step = .25
 
         def update(frame_num):
-            nonlocal global_step
-            nonlocal arrows
-            global_step = frame_num
-            robot.center = robot_positions[frame_num]
-            for i, human in enumerate(humans):
-                human.center = human_positions[frame_num][i]
-                human_numbers[i].set_position((human.center[0] - x_offset, human.center[1] - y_offset))
-                for arrow in arrows:
-                    arrow.remove()
-                arrows = [patches.FancyArrowPatch(*orientation[frame_num], color=arrow_color,
-                                                  arrowstyle=arrow_style) for orientation in orientations]
-                for arrow in arrows:
-                    ax.add_artist(arrow)
-                if self.attention_weights is not None:
-                    human.set_color(str(self.attention_weights[frame_num][i]))
-                    attention_scores[i].set_text('human {}: {:.2f}'.format(i, self.attention_weights[frame_num][i]))
+            position = self.frames[frame_num][0].position
+            theta = np.arctan2(self.frames[frame_num][0].vy, self.frames[frame_num][0].vx)
+            self.robot.center = position
+            r = mpl.transforms.Affine2D().rotate(theta)
+            t = mpl.transforms.Affine2D().translate(position[0], position[1])
+            tra = r + t + self.ax.transData
+            self.robot_ori.set_transform(tra)
 
-            time.set_text('Time: {:.2f}'.format(frame_num * time_step))
+            for i, human in enumerate(self.humans):
+                human.center = self.frames[frame_num][1][i].position
+                self.human_numbers[i].set_position((human.center[0] - .11, human.center[1] - .11))
+                theta = np.arctan2(self.frames[frame_num][1][i].vy, self.frames[frame_num][1][i].vx)
+                r = mpl.transforms.Affine2D().rotate(theta)
+                t = mpl.transforms.Affine2D().translate(self.frames[frame_num][1][i].px, self.frames[frame_num][1][i].py)
+                tra = r + t + self.ax.transData
+                self.human_ori[i].set_transform(tra)
+
+            self.text.set_text('Time: {:.2f}'.format(frame_num * time_step))
 
         def plot_value_heatmap():
             assert self.robot.kinematics == 'holonomic'
@@ -138,8 +140,8 @@ class Video(ObservationSubscriber):
                 anim.event_source.start()
 
         episode_length = len(self.frames)
-        fig.canvas.mpl_connect('key_press_event', on_click)
-        anim = animation.FuncAnimation(fig, update, frames=episode_length, interval=time_step * 1000)
+        self.fig.canvas.mpl_connect('key_press_event', on_click)
+        anim = animation.FuncAnimation(self.fig, update, frames=episode_length, interval=time_step * 1000)
         anim.running = True
 
         if self.file is not None:
