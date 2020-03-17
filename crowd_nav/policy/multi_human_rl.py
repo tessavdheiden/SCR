@@ -151,9 +151,9 @@ class MultiHumanRL(CADRL):
                             dm[2 * int(index)].append(other_vx[i])
                             dm[2 * int(index) + 1].append(other_vy[i])
                         elif self.om_channel_size == 3:
-                            dm[3 * int(index)].append(1)
-                            dm[3 * int(index) + 1].append(other_vx[i])
-                            dm[3 * int(index) + 2].append(other_vy[i])
+                            dm[int(index)].append(1)
+                            dm[int(index) + self.cell_num ** 2].append(other_vx[i])
+                            dm[int(index) + self.cell_num ** 2 * 2].append(other_vy[i])
                         else:
                             raise NotImplementedError
                 for i, cell in enumerate(dm):
