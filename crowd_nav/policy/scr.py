@@ -12,11 +12,11 @@ from crowd_nav.empowerment.transition import Transition
 
 
 class EmpowermentNetwork(nn.Module):
-    def __init__(self):
+    def __init__(self, state_nb):
         super().__init__()
-        self.source = Source(5, 2)
-        self.planning = Planning(5, 2)
-        self.transition = Transition(5, 2)
+        self.source = Source(state_nb, 2)
+        self.planning = Planning(state_nb, 2)
+        self.transition = Transition(state_nb, 2)
         self.optimizer = optim.SGD(list(self.source.parameters()) + list(self.transition.parameters()) +
                                    list(self.planning.parameters()), lr=1e-4, momentum=0.9)
 
@@ -48,20 +48,27 @@ class SCR(SARL):
         mlp2_dims = [int(x) for x in config.get('sarl', 'mlp2_dims').split(', ')]
         mlp3_dims = [int(x) for x in config.get('sarl', 'mlp3_dims').split(', ')]
         attention_dims = [int(x) for x in config.get('sarl', 'attention_dims').split(', ')]
-        self.with_om = config.getboolean('sarl', 'with_om')
+        self.with_om = config.getboolean('scr', 'with_om')
+        if not self.with_om:
+            raise AttributeError('SCR needs occupancy maps!')
         with_global_state = config.getboolean('sarl', 'with_global_state')
         self.model = ValueNetwork(self.input_dim(), self.self_state_dim, mlp1_dims, mlp2_dims, mlp3_dims,
                                   attention_dims, with_global_state, self.cell_size, self.cell_num)
         self.multiagent_training = config.getboolean('sarl', 'multiagent_training')
-        self.empowerment = EmpowermentNetwork()
+
+        self.occupancy_map_dim = self.cell_num ** 2 * self.om_channel_size
+        self.empowerment = EmpowermentNetwork(state_nb=self.occupancy_map_dim)
 
         logging.info('Policy: {} {} global state'.format(self.name, 'w/' if with_global_state else 'w/o'))
 
+    def get_occupancy_maps(self, joint_state):
+        return joint_state[:, :, -self.occupancy_map_dim:]
+
     def update(self, data):
-        inputs, values, human_states = data
+        inputs, values, _ = data
         inputs = Variable(inputs)
         values = Variable(values)
-        human_states = Variable(human_states)
+        human_states = Variable(self.get_occupancy_maps(inputs))
 
         self.empowerment.optimizer.zero_grad()
         estimate = self.empowerment(human_states).mean()
@@ -83,10 +90,8 @@ class SCR(SARL):
             for h in range(human_num):
                 self.make_text(h, ax)
         else:
-            human_states = torch.cat([torch.Tensor([human_state.px, human_state.py, human_state.vx, human_state.vy,
-                                                    human_state.radius]).to(self.device)
-                                      for human_state in ob[1]], dim=0).reshape(1, -1, 5)
-            empowerment = self.empowerment(human_states)
+            oms = self.build_occupancy_maps(ob[1], ob[0]).unsqueeze(0)
+            empowerment = self.empowerment(oms)
             for h in range(human_num):
                 self.scores[h].set_text('human {}: {:.2f}'.format(h, empowerment[0, h].mean()))
 
