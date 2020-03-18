@@ -105,7 +105,7 @@ def main():
     memory = ReplayMemory(capacity)
     model = policy.get_model()
     batch_size = train_config.getint('trainer', 'batch_size')
-    trainer = Trainer(model, memory, device, batch_size)
+    trainer = Trainer(policy, memory, device, batch_size)
     explorer = Explorer(env, robot, device, memory, policy.gamma, target_policy=policy)
 
     # imitation learning

@@ -1,6 +1,8 @@
 import torch
 import torch.nn as nn
-from torch.nn.functional import softmax
+from torch.autograd import Variable
+import torch.optim as optim
+
 import logging
 from crowd_nav.policy.cadrl import mlp
 from crowd_nav.policy.multi_human_rl import MultiHumanRL
@@ -80,10 +82,28 @@ class SARL(MultiHumanRL):
         with_global_state = config.getboolean('sarl', 'with_global_state')
         self.model = ValueNetwork(self.input_dim(), self.self_state_dim, mlp1_dims, mlp2_dims, mlp3_dims,
                                   attention_dims, with_global_state, self.cell_size, self.cell_num)
+
         self.multiagent_training = config.getboolean('sarl', 'multiagent_training')
         if self.with_om:
             self.name = 'OM-SARL'
         logging.info('Policy: {} {} global state'.format(self.name, 'w/' if with_global_state else 'w/o'))
+
+    def set_learning_rate(self, learning_rate):
+        logging.info('Current learning rate: %f', learning_rate)
+        self.optimizer = optim.SGD(self.model.parameters(), lr=learning_rate, momentum=0.9)
+        self.criterion = nn.MSELoss().to(self.device)
+
+    def update(self, data):
+        inputs, values, _ = data
+        inputs = Variable(inputs)
+        values = Variable(values)
+
+        self.optimizer.zero_grad()
+        outputs = self.model(inputs)
+        loss = self.criterion(outputs, values)
+        loss.backward()
+        self.optimizer.step()
+        return loss.data.item()
 
     def get_attention_weights(self):
         return self.model.attention_weights
