@@ -1,8 +1,11 @@
 import torch
 import torch.nn as nn
+import torch.optim as optim
+from torch.autograd import Variable
 import numpy as np
 import itertools
 import logging
+
 from crowd_sim.envs.policy.policy import Policy
 from crowd_sim.envs.utils.action import ActionRot, ActionXY
 from crowd_sim.envs.utils.state import ObservableState, FullState
@@ -54,6 +57,9 @@ class CADRL(Policy):
         self.human_state_dim = 7
         self.joint_state_dim = self.self_state_dim + self.human_state_dim
 
+        self.optimizer = None
+        self.criterion = None
+
     def configure(self, config):
         self.set_common_parameters(config)
         mlp_dims = [int(x) for x in config.get('cadrl', 'mlp_dims').split(', ')]
@@ -78,6 +84,23 @@ class CADRL(Policy):
 
     def set_epsilon(self, epsilon):
         self.epsilon = epsilon
+
+    def set_learning_rate(self, learning_rate):
+        logging.info('Current learning rate: %f', learning_rate)
+        self.optimizer = optim.SGD(self.model.parameters(), lr=learning_rate, momentum=0.9)
+        self.criterion = nn.MSELoss().to(self.device)
+
+    def update(self, data):
+        inputs, values, _ = data
+        inputs = Variable(inputs)
+        values = Variable(values)
+
+        self.optimizer.zero_grad()
+        outputs = self.model(inputs)
+        loss = self.criterion(outputs, values)
+        loss.backward()
+        self.optimizer.step()
+        return loss.data.item()
 
     def build_action_space(self, v_pref):
         """
