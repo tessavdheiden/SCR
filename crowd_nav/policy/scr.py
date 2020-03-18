@@ -34,7 +34,7 @@ class EmpowermentNetwork(nn.Module):
         mu_p, sigma_p = self.planning(human_state, human_next_state)
         dist_plan = Normal(mu_p, sigma_p)
 
-        return (dist_plan.log_prob(sample) - dist_source.log_prob(sample)).mean()
+        return dist_plan.log_prob(sample) - dist_source.log_prob(sample)
 
 
 class SCR(SARL):
@@ -64,14 +64,29 @@ class SCR(SARL):
         human_states = Variable(human_states)
 
         self.empowerment.optimizer.zero_grad()
-        estimate = self.empowerment(human_states)
+        estimate = self.empowerment(human_states).mean()
         estimate.backward(retain_graph=True)
         self.empowerment.optimizer.step()
 
         self.optimizer.zero_grad()
         outputs = self.model(inputs)
-        loss = self.criterion(outputs, values) + estimate
+        loss = self.criterion(outputs, values) + estimate.mean()
         loss.backward()
         self.optimizer.step()
 
         return loss.data.item()
+
+    def draw_attention(self, ax, ob, init=False):
+        human_num = len(ob[1])
+        if init:
+            self.scores = [None for _ in range(human_num)]
+            for h in range(human_num):
+                self.make_text(h, ax)
+        else:
+            human_states = torch.cat([torch.Tensor([human_state.px, human_state.py, human_state.vx, human_state.vy,
+                                                    human_state.radius]).to(self.device)
+                                      for human_state in ob[1]], dim=0).reshape(1, -1, 5)
+            empowerment = self.empowerment(human_states)
+            for h in range(human_num):
+                self.scores[h].set_text('human {}: {:.2f}'.format(h, empowerment[0, h].mean()))
+

@@ -147,6 +147,7 @@ def main():
     # fill the memory pool with some RL experience
     if args.resume:
         robot.policy.set_epsilon(epsilon_end)
+        explorer.run_episode('val', video_file='data/output/video_e{}.mp4'.format(-1))
         explorer.run_k_episodes(100, 'train', update_memory=True, episode=0)
         logging.info('Experience set size: %d/%d', len(memory), memory.capacity)
     episode = 0
