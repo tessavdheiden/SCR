@@ -18,7 +18,7 @@ from crowd_nav.policy.policy_factory import policy_factory
 def main():
     parser = argparse.ArgumentParser('Parse configuration file')
     parser.add_argument('--env_config', type=str, default='configs/env.config')
-    parser.add_argument('--policy', type=str, default='sarl')
+    parser.add_argument('--policy', type=str, default='scr')
     parser.add_argument('--policy_config', type=str, default='configs/policy.config')
     parser.add_argument('--train_config', type=str, default='configs/train.config')
     parser.add_argument('--output_dir', type=str, default='data/output')
@@ -162,7 +162,7 @@ def main():
 
         # evaluate the model
         if episode % evaluation_interval == 0:
-            explorer.run_episode('val')
+            explorer.run_episode('val', video_file='data/output/video_e{}.mp4'.format(episode))
 
         # sample k episodes into memory and optimize over the generated memory
         explorer.run_k_episodes(sample_episodes, 'train', update_memory=True, episode=episode)

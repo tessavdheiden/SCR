@@ -102,15 +102,15 @@ class SARL(MultiHumanRL):
                 for h in range(human_num):
                     self.make_text(h, ax)
             else:
+                input_joined = torch.cat([torch.Tensor([ob[0] + next_human_state]).to(self.device)
+                                          for next_human_state in ob[1]], dim=0)
+                input_rot = self.rotate(input_joined).unsqueeze(0)
+                if self.with_om:
+                    oms = self.build_occupancy_maps(ob[1], ob[0]).unsqueeze(0)
+                    input_rot = torch.cat([input_rot, oms.to(self.device)], dim=2)
+                self.model(input_rot)
+                attention = self.get_attention_weights()
                 for h in range(human_num):
-                    input_joined = torch.cat([torch.Tensor([ob[0] + next_human_state]).to(self.device)
-                                                   for next_human_state in ob[1]], dim=0)
-                    input_rot = self.rotate(input_joined).unsqueeze(0)
-                    if self.with_om:
-                        oms = self.build_occupancy_maps(ob[1], ob[0]).unsqueeze(0)
-                        input_rot = torch.cat([input_rot, oms.to(self.device)], dim=2)
-                    self.model(input_rot)
-                    attention = self.get_attention_weights()
                     self.scores[h].set_text('human {}: {:.2f}'.format(h, attention[h]))
 
 
