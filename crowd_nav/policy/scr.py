@@ -38,6 +38,7 @@ class EmpowermentNetwork(nn.Module):
 
 
 class SCR(SARL):
+    max_grad_norm = .5
     def __init__(self):
         super().__init__()
         self.name = 'SCR'
@@ -71,8 +72,10 @@ class SCR(SARL):
         human_states = Variable(self.get_occupancy_maps(inputs))
 
         self.empowerment.optimizer.zero_grad()
-        estimate = self.empowerment(human_states).mean()
+        estimate = -self.empowerment(human_states).mean()
         estimate.backward(retain_graph=True)
+        nn.utils.clip_grad_norm_(list(self.empowerment.planning.parameters()) + list(self.empowerment.source.parameters())+ list(self.empowerment.transition.parameters()),
+                                 self.max_grad_norm)
         self.empowerment.optimizer.step()
 
         self.optimizer.zero_grad()
