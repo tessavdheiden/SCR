@@ -60,7 +60,7 @@ class Video(ObservationSubscriber):
     def add_robot_orientation(self):
         theta = np.arctan2(self.frames[0][0].vy, self.frames[0][0].vx)
         orientation = ((0, 0), (self.frames[0][0].radius * np.cos(theta), self.frames[0][0].radius * np.sin(theta)))
-        self.robot_ori = patches.FancyArrowPatch(*orientation, color='k', arrowstyle=patches.ArrowStyle("->", head_length=4, head_width=2))
+        self.robot_ori = patches.FancyArrowPatch(*orientation, color='r', arrowstyle=patches.ArrowStyle("->", head_length=4, head_width=2))
         self.ax.add_artist(self.robot_ori)
 
     def add_human_orientations(self):
@@ -68,7 +68,7 @@ class Video(ObservationSubscriber):
         for i, human in enumerate(self.humans):
             theta = np.arctan2(self.frames[0][1][i].vy, self.frames[0][1][i].vx)
             orientation = ((0, 0), (self.frames[0][1][i].radius * np.cos(theta), self.frames[0][1][i].radius * np.sin(theta)))
-            self.human_ori[i] = patches.FancyArrowPatch(*orientation, color='k',
+            self.human_ori[i] = patches.FancyArrowPatch(*orientation, color='r',
                                                      arrowstyle=patches.ArrowStyle("->", head_length=4, head_width=2))
             self.ax.add_artist(self.human_ori[i])
 
@@ -76,7 +76,7 @@ class Video(ObservationSubscriber):
         self.text = plt.text(-1, 5, 'Time: {}'.format(0), fontsize=16)
         self.ax.add_artist(self.text)
 
-    def make(self, draw_func=None):
+    def make(self, draw_func=[]):
         self.make_ax()
         self.add_robot_circle()
         self.add_goal()
