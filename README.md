@@ -16,8 +16,25 @@ The method can be used in any multi-agent system that requires a robot to solve 
 
 
 ## Method Overview
-<img src="algorithm.png" width="500" />
-<img src="https://i.imgur.com/YOPHXD1.png" width="1000" />
+The robot uses the states of all its neighbors to compute their empowerment. Empowerment is used in addition to 
+state-value estimates. In this way, SCR learns to not collide with humans (from state-values) as well as giving them the 
+ability to pursue their goals (from empowerment estimates).
+
+[comment]: <> ( plot value function, 1 human 1 robot not blocking.)
+[comment]: <> ( plot value function, 1 human 1 robot blocking.)
+
+The human states are occupancy maps centered around them. These provide enough information on whether an action
+would have influence or not, because occupied areas block their movement. Empowerment is computed from these maps and their
+actions, which are 2 (dx, dy movements) continuous samples obtained from normal distributions. 
+
+[comment]: <> ( empowerment landschape, 1 human 1 robot not blocking.)
+[comment]: <> ( empowerment landschape, 1 human 1 robot blocking.)
+
+## Simulation Videos
+IL             | SCR
+:-------------------------:|:-------------------------:
+<img src="il.gif" width="400" />|<img src="scr.gif" width="400" />
+
 
 ## Setup
 1. Install [Python-RVO2](https://github.com/sybrenstuvel/Python-RVO2) library
