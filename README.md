@@ -1,7 +1,6 @@
-# CrowdNav
+# Human empowerment driven RL
 This repository contains the code for my paper. For more details, please refer to the paper
-[Social navigation with human empowerment driven reinforcement learning](https://arxiv.org/abs/1809.08835).
-
+[Social navigation with human empowerment driven reinforcement learning](https://arxiv.org/abs/2003.08158).
 
 ## Abstract
 The next generation of mobile robots needs to be socially-compliant to be accepted by humans. As simple as this task may seem, 
@@ -13,7 +12,6 @@ maximizes the influence of an agent on its future. On the contrary, our robot st
 its environment, so they are not disturbed by the robot when pursuing their goals. 
 We show that our robot has a positive influence on humans, as it minimizes the travel time and distance of humans while moving efficiently to its own goal.
 The method can be used in any multi-agent system that requires a robot to solve a particular task involving humans interactions.
-
 
 ## Method Overview
 The robot uses the states of all its neighbors to compute their empowerment. Empowerment is used in addition to 
@@ -30,11 +28,12 @@ actions, which are 2 (dx, dy movements) continuous samples obtained from normal 
 [comment]: <> ( empowerment landschape, 1 human 1 robot not blocking.)
 [comment]: <> ( empowerment landschape, 1 human 1 robot blocking.)
 
-## Simulation Videos
 IL             | SCR
 :-------------------------:|:-------------------------:
 <img src="il.gif" width="400" />|<img src="scr.gif" width="400" />
-
+Just after imitation learning the robot learns to avoid collisions as well as reaching its goal.
+|
+After training with empowerment it learns to give way to people. The blue maps are the states of the humans.
 
 ## Setup
 1. Install [Python-RVO2](https://github.com/sybrenstuvel/Python-RVO2) library
@@ -52,29 +51,29 @@ inside the crowd_nav/ folder.
 
 1. Train a policy.
 ```
-python train.py --policy sarl
+python train.py --policy scr
 ```
 2. Test policies with 500 test cases.
 ```
 python test.py --policy orca --phase test
-python test.py --policy sarl --model_dir data/output --phase test
+python test.py --policy scr --model_dir data/output --phase test
 ```
 3. Run policy for one episode and visualize the result.
 ```
 python test.py --policy orca --phase test --visualize --test_case 0
-python test.py --policy sarl --model_dir data/output --phase test --visualize --test_case 0
+python test.py --policy scr --model_dir data/output --phase test --visualize --test_case 0
 ```
-4. Visualize a test case.
+4. Visualize a test case and potentially save a video or plot
 ```
-python test.py --policy sarl --model_dir data/output --phase test --visualize --test_case 0
---policy sarl --model_dir data/output --phase test --visualize --test_case 0 --video_file data/output/video.mp4 --plot_file data/output/plot.png 
+python test.py --policy scr --model_dir data/output --phase test --visualize --test_case 0
+python test.py --policy scr --model_dir data/output --phase test --visualize --test_case 0 --plot_file data/output/plot.png 
+python test.py --policy scr --model_dir data/output --phase test --visualize --test_case 0 --video_file data/output/video.mp4
+```
 
-```
 5. Plot training curve.
 ```
 python utils/plot.py data/output/output.log
 ```
-
 
 ## Simulation Videos
 CADRL             | LSTM-RL
@@ -84,18 +83,15 @@ SARL             |  OM-SARL
 <img src="https://i.imgur.com/rUtAGVP.gif" width="400" />|<img src="https://i.imgur.com/UXhcvZL.gif" width="400" />
 
 
-## Learning Curve
-Learning curve comparison between different methods in an invisible setting.
-
-<img src="https://i.imgur.com/l5UC3qa.png" width="600" />
-
 ## Citation
 If you find the codes or paper useful for your research, please cite our paper:
 ```
-@misc{1809.08835,
-Author = {Changan Chen and Yuejiang Liu and Sven Kreiss and Alexandre Alahi},
-Title = {Crowd-Robot Interaction: Crowd-aware Robot Navigation with Attention-based Deep Reinforcement Learning},
-Year = {2018},
-Eprint = {arXiv:1809.08835},
+@misc{heiden2020social,
+    title={Social navigation with human empowerment driven reinforcement learning},
+    author={Tessa van der Heiden and Christian Weiss and Naveen Nagaraja Shankar and Efstratios Gavves and Herke van Hoof},
+    year={2020},
+    eprint={2003.08158},
+    archivePrefix={arXiv},
+    primaryClass={cs.MA}
 }
 ```
