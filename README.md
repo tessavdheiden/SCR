@@ -31,9 +31,7 @@ actions, which are 2 (dx, dy movements) continuous samples obtained from normal 
 IL             | SCR
 :-------------------------:|:-------------------------:
 <img src="il.gif" width="400" />|<img src="scr.gif" width="400" />
-Just after imitation learning the robot learns to avoid collisions as well as reaching its goal.
-|
-After training with empowerment it learns to give way to people. The blue maps are the states of the humans.
+Just after imitation learning the robot learns to avoid collisions as well as reaching its goal.| After training with empowerment it learns to give way to people. The blue maps are the states of the humans.
 
 ## Setup
 1. Install [Python-RVO2](https://github.com/sybrenstuvel/Python-RVO2) library
