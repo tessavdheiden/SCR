@@ -342,6 +342,11 @@ class CrowdSim(gym.Env):
             if self.robot.kinematics == 'holonomic':
                 vx = human.vx - action.vx
                 vy = human.vy - action.vy
+            elif self.robot.kinematics == 'unicycle' and action.r != 0:
+                vx = (action.v / action.r) * (
+                        np.sin(action.r * self.time_step + self.robot.theta) - np.sin(self.robot.theta))
+                vy = (action.v / action.r) * (
+                        np.sin(action.r * self.time_step + self.robot.theta) - np.sin(self.robot.theta))
             else:
                 vx = human.vx - action.v * np.cos(action.r + self.robot.theta)
                 vy = human.vy - action.v * np.sin(action.r + self.robot.theta)
