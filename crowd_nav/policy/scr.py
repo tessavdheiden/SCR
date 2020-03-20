@@ -49,7 +49,7 @@ class SCR(SARL):
         mlp2_dims = [int(x) for x in config.get('sarl', 'mlp2_dims').split(', ')]
         mlp3_dims = [int(x) for x in config.get('sarl', 'mlp3_dims').split(', ')]
         attention_dims = [int(x) for x in config.get('sarl', 'attention_dims').split(', ')]
-        self.with_om = config.getboolean('scr', 'with_om')
+        self.with_om = config.getboolean('sarl', 'with_om')
         if not self.with_om:
             raise AttributeError('SCR needs occupancy maps!')
         with_global_state = config.getboolean('sarl', 'with_global_state')
@@ -59,7 +59,7 @@ class SCR(SARL):
 
         self.occupancy_map_dim = self.cell_num ** 2 * self.om_channel_size
         self.empowerment = EmpowermentNetwork(state_nb=self.occupancy_map_dim)
-
+        self.beta = config.getfloat('scr', 'beta')
         logging.info('Policy: {} {} global state'.format(self.name, 'w/' if with_global_state else 'w/o'))
 
     def get_occupancy_maps(self, joint_state):
@@ -72,15 +72,16 @@ class SCR(SARL):
         human_states = Variable(self.get_occupancy_maps(inputs))
 
         self.empowerment.optimizer.zero_grad()
-        estimate = -self.empowerment(human_states).mean()
-        estimate.backward(retain_graph=True)
+        estimate = self.empowerment(human_states).mean(-1).mean(-1)
+        loss = - estimate.mean()
+        loss.backward(retain_graph=True)
         nn.utils.clip_grad_norm_(list(self.empowerment.planning.parameters()) + list(self.empowerment.source.parameters())+ list(self.empowerment.transition.parameters()),
                                  self.max_grad_norm)
         self.empowerment.optimizer.step()
 
         self.optimizer.zero_grad()
         outputs = self.model(inputs)
-        loss = self.criterion(outputs, values) + estimate.mean()
+        loss = self.criterion(outputs, values + self.beta * estimate.view(-1, 1))
         loss.backward()
         self.optimizer.step()
 
