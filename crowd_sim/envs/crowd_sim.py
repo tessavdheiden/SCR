@@ -114,6 +114,18 @@ class CrowdSim(gym.Env):
     def set_humans(self, humans):
         self.humans = humans
 
+    def generate_static_human(self, i):
+        self.generate_circle_crossing_human(i)
+        if i == self.human_num - 1:
+            self.humans[i].px = 0.
+            self.humans[i].py = 0.
+            self.humans[i].v_pref = 0.
+            self.humans[i].gx = self.humans[i].px
+            self.humans[i].gy = self.humans[i].py
+            self.humans[i].vy = 0.
+            self.humans[i].vx = 0.
+            self.humans[i].radius *= 2
+
     def generate_random_human_position(self, human_num, rule):
         """
         Generate human position according to certain rule
@@ -131,6 +143,9 @@ class CrowdSim(gym.Env):
         elif rule == 'circle_crossing':
             for i in range(human_num):
                 self.generate_circle_crossing_human(i)
+        elif rule == 'static':
+            for i in range(human_num):
+                self.generate_static_human(i)
         elif rule == 'mixed':
             static = True if np.random.random() < 0.2 else False
             if static:
@@ -342,6 +357,11 @@ class CrowdSim(gym.Env):
             if self.robot.kinematics == 'holonomic':
                 vx = human.vx - action.vx
                 vy = human.vy - action.vy
+            elif self.robot.kinematics == 'unicycle' and action.r != 0:
+                vx = (action.v / action.r) * (
+                        np.sin(action.r * self.time_step + self.robot.theta) - np.sin(self.robot.theta))
+                vy = (action.v / action.r) * (
+                        np.sin(action.r * self.time_step + self.robot.theta) - np.sin(self.robot.theta))
             else:
                 vx = human.vx - action.v * np.cos(action.r + self.robot.theta)
                 vy = human.vy - action.v * np.sin(action.r + self.robot.theta)

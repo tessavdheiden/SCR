@@ -54,7 +54,8 @@ class Video(ObservationSubscriber):
            self.ax.add_artist(self.human_numbers[i])
 
     def add_goal(self):
-        goal = mlines.Line2D([0], [4], color='red', marker='*', linestyle='None', markersize=15, label='Goal')
+        location = self.frames[0][0].goal_position
+        goal = mlines.Line2D([location[0]], [location[1]], color='red', marker='*', linestyle='None', markersize=15, label='Goal')
         self.ax.add_artist(goal)
 
     def add_robot_orientation(self):
