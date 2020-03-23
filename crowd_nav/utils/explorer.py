@@ -9,6 +9,7 @@ from crowd_sim.envs.utils.info import *
 from crowd_sim.envs.utils.action import *
 from crowd_sim.envs.visualization.observer_subscriber import notify
 from crowd_sim.envs.visualization.video import Video
+from crowd_sim.envs.visualization.plotter import Plotter
 
 def get_speed(actions):
     if isinstance(actions[0], ActionXY):
@@ -39,11 +40,12 @@ class Explorer(object):
     def update_target_model(self, target_model):
         self.target_model = copy.deepcopy(target_model)
 
-    def run_episode(self, phase, video_file=None):
+    def run_episode(self, phase, video_file=None, plot_file=None):
         if video_file:
             observation_subscribers = []
             video = Video(video_file)
-            observation_subscribers.append(video)
+            plotter = Plotter(plot_file)
+            observation_subscribers += [video, plotter]
 
         self.robot.policy.set_phase(phase)
 
@@ -71,6 +73,8 @@ class Explorer(object):
 
         if video_file:
             video.make([self.robot.policy.draw_attention, self.robot.policy.draw_observation])
+        if plot_file:
+            plotter.save()
         plt.close()
 
         avg_rewards = sum([pow(self.gamma, t * self.robot.time_step * self.robot.v_pref)

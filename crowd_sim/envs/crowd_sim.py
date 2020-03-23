@@ -115,16 +115,10 @@ class CrowdSim(gym.Env):
         self.humans = humans
 
     def generate_static_human(self, i):
-        self.generate_circle_crossing_human(i)
         if i == self.human_num - 1:
-            self.humans[i].px = 0.
-            self.humans[i].py = 0.
-            self.humans[i].v_pref = 0.
-            self.humans[i].gx = self.humans[i].px
-            self.humans[i].gy = self.humans[i].py
-            self.humans[i].vy = 0.
-            self.humans[i].vx = 0.
-            self.humans[i].radius *= 2
+            self.humans[i].set(0, 0, 0, 0, 0, 0, 0, radius=.3, v_pref=0.)
+        else:
+            self.generate_circle_crossing_human(i)
 
     def generate_random_human_position(self, human_num, rule):
         """
@@ -361,7 +355,7 @@ class CrowdSim(gym.Env):
                 vx = (action.v / action.r) * (
                         np.sin(action.r * self.time_step + self.robot.theta) - np.sin(self.robot.theta))
                 vy = (action.v / action.r) * (
-                        np.sin(action.r * self.time_step + self.robot.theta) - np.sin(self.robot.theta))
+                        np.cos(action.r * self.time_step + self.robot.theta) - np.cos(self.robot.theta))
             else:
                 vx = human.vx - action.v * np.cos(action.r + self.robot.theta)
                 vy = human.vy - action.v * np.sin(action.r + self.robot.theta)
