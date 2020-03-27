@@ -2,8 +2,7 @@ import torch
 import numpy as np
 from crowd_sim.envs.utils.action import ActionRot, ActionXY
 from crowd_nav.policy.cadrl import CADRL
-from crowd_nav.utils.transformations import build_occupancy_map
-
+from crowd_nav.utils.transformations import build_occupancy_map, propagate
 
 class MultiHumanRL(CADRL):
     def __init__(self):
@@ -34,7 +33,7 @@ class MultiHumanRL(CADRL):
             max_value = float('-inf')
             max_action = None
             for action in self.action_space:
-                next_self_state = self.propagate(state.self_state, action)
+                next_self_state = propagate(state=state.self_state, action=action, time_step=self.time_step, kinematics=self.kinematics)
                 if self.query_env:
                     next_human_states, reward, done, info = self.env.onestep_lookahead(action)
                 else:

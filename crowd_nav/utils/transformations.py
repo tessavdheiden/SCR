@@ -3,6 +3,7 @@ from crowd_sim.envs.utils.human import Human
 from crowd_sim.envs.utils.state import State, ObservableState, FullState
 from crowd_sim.envs.utils.action import Action
 
+
 def build_occupancy_map(human : Human, other_agents : np.array, cell_num : int, cell_size : float, om_channel_size : int) -> np.array:
     """
     :param human_states:
@@ -54,7 +55,7 @@ def build_occupancy_map(human : Human, other_agents : np.array, cell_num : int, 
         return dm
 
 
-def propagate(state : State, action : Action, time_step : float, kinematics : str):
+def propagate(state : State, action : Action, time_step : float, kinematics : str) -> State:
     if isinstance(state, ObservableState):
         # propagate state of humans
         next_px = state.px + action.vx * time_step

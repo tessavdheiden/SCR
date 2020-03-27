@@ -124,9 +124,6 @@ class CADRL(Policy):
         self.rotations = rotations
         self.action_space = action_space
 
-    def propagate(self, state, action):
-        return propagate(state, action, self.time_step, self.kinematics)
-
     def predict(self, state):
         """
         Input state is the joint state of robot concatenated by the observable state of other agents
@@ -153,7 +150,7 @@ class CADRL(Policy):
             max_min_value = float('-inf')
             max_action = None
             for action in self.action_space:
-                next_self_state = self.propagate(state.self_state, action)
+                next_self_state = propagate(state.self_state, action, time_step=self.time_step, kinematics=self.kinematics)
                 ob, reward, done, info = self.env.onestep_lookahead(action)
                 batch_next_states = torch.cat([torch.Tensor([next_self_state + next_human_state]).to(self.device)
                                               for next_human_state in ob], dim=0)

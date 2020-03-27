@@ -1,12 +1,14 @@
 import unittest
 
 import numpy as np
-from crowd_nav.utils.transformations import build_occupancy_map
+from crowd_nav.utils.transformations import build_occupancy_map, propagate
 from crowd_sim.envs.utils.human import Human
+from crowd_sim.envs.utils.state import ObservableState
+from crowd_sim.envs.utils.action import ActionXY
 
 
-class TransformationsTest(unittest.TestCase):
-    def test_build_occupancy_map_no_overlap(self):
+class BuildOccupancyMapTest(unittest.TestCase):
+    def test_no_overlap(self):
         cell_num = 4
         cell_size = 1
         om_channel_size = 1
@@ -17,8 +19,16 @@ class TransformationsTest(unittest.TestCase):
         expected_result = np.zeros((cell_num ** 2 * om_channel_size))
         self.assertTrue(np.array_equal(result, expected_result))
 
-    def test_build_occupancy_map_left_corner(self):
+    def test_left_corner(self):
         pass
+
+class PropagateTest(unittest.TestCase):
+    def test_no_movement(self):
+        radius = 1
+        state = ObservableState(0, 0, 0, 0, radius)
+        action = ActionXY(0, 0)
+        next_state = propagate(state, action, time_step=.1, kinematics='holonomic')
+        self.assertEqual(next_state, state)
 
 if __name__ == "__main__":
     unittest.main()
