@@ -48,7 +48,7 @@ def build_occupancy_map(human, other_humans, cell_num, cell_size, om_channel_siz
                     raise NotImplementedError
         for i, cell in enumerate(dm):
             dm[i] = sum(dm[i]) / len(dm[i]) if len(dm[i]) != 0 else 0
-        return [dm]
+        return dm
 
 
 def propagate_occupancy_map(occupancy_map, action):
