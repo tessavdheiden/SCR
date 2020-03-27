@@ -1,4 +1,8 @@
-class FullState(object):
+class State(object):
+    pass
+
+
+class FullState(State):
     def __init__(self, px, py, vx, vy, radius, gx, gy, v_pref, theta):
         self.px = px
         self.py = py
@@ -22,7 +26,7 @@ class FullState(object):
                                           self.v_pref, self.theta]])
 
 
-class ObservableState(object):
+class ObservableState(State):
     def __init__(self, px, py, vx, vy, radius):
         self.px = px
         self.py = py
@@ -38,6 +42,9 @@ class ObservableState(object):
 
     def __str__(self):
         return ' '.join([str(x) for x in [self.px, self.py, self.vx, self.vy, self.radius]])
+
+    def __eq__(self, other):
+        return all([self.px == other.px, self.py == other.py, self.vx == other.vx, self.vy == other.vy, self.radius == other.radius])
 
 
 class JointState(object):
