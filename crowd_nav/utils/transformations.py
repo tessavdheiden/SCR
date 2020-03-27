@@ -1,6 +1,7 @@
 import numpy as np
 from crowd_sim.envs.utils.human import Human
-
+from crowd_sim.envs.utils.state import State, ObservableState, FullState
+from crowd_sim.envs.utils.action import Action
 
 def build_occupancy_map(human : Human, other_agents : np.array, cell_num : int, cell_size : float, om_channel_size : int) -> np.array:
     """
@@ -53,5 +54,45 @@ def build_occupancy_map(human : Human, other_agents : np.array, cell_num : int, 
         return dm
 
 
-def propagate_occupancy_map(occupancy_map, action):
-    pass
+def propagate(state : State, action : Action, time_step : float, kinematics : str):
+    if isinstance(state, ObservableState):
+        # propagate state of humans
+        next_px = state.px + action.vx * time_step
+        next_py = state.py + action.vy * time_step
+        next_state = ObservableState(next_px, next_py, action.vx, action.vy, state.radius)
+    elif isinstance(state, FullState):
+        # propagate state of current agent
+        # perform action without rotation
+        if kinematics == 'holonomic':
+            next_px = state.px + action.vx * time_step
+            next_py = state.py + action.vy * time_step
+            next_state = FullState(next_px, next_py, action.vx, action.vy, state.radius,
+                                   state.gx, state.gy, state.v_pref, state.theta)
+        elif kinematics == 'unicycle':
+            # altered for Turtlebot:
+            next_theta = state.theta + (action.r * time_step)
+            next_vx = action.v * np.cos(next_theta)
+            next_vy = action.v * np.sin(next_theta)
+            if action.r == 0:
+                next_px = state.px + action.v * np.cos(state.theta) * time_step
+                next_py = state.py + action.v * np.sin(state.theta) * time_step
+            else:
+                next_px = state.px + (action.v / action.r) * (
+                        np.sin(action.r * time_step + state.theta) - np.sin(state.theta))
+                next_py = state.py + (action.v / action.r) * (
+                        np.cos(state.theta) - np.cos(action.r * time_step + state.theta))
+            next_state = FullState(next_px, next_py, next_vx, next_vy, state.radius, state.gx, state.gy,
+                                   state.v_pref, next_theta)
+        else:
+            next_theta = state.theta + action.r
+            next_vx = action.v * np.cos(next_theta)
+            next_vy = action.v * np.sin(next_theta)
+            next_px = state.px + next_vx * time_step
+            next_py = state.py + next_vy * time_step
+            next_state = FullState(next_px, next_py, next_vx, next_vy, state.radius, state.gx, state.gy,
+                                   state.v_pref, next_theta)
+    else:
+        raise ValueError('Type error')
+
+    return next_state
+

@@ -8,7 +8,7 @@ import logging
 
 from crowd_sim.envs.policy.policy import Policy
 from crowd_sim.envs.utils.action import ActionRot, ActionXY
-from crowd_sim.envs.utils.state import ObservableState, FullState
+from crowd_nav.utils.transformations import propagate
 
 
 def mlp(input_dim, mlp_dims, last_relu=False):
@@ -125,46 +125,7 @@ class CADRL(Policy):
         self.action_space = action_space
 
     def propagate(self, state, action):
-        if isinstance(state, ObservableState):
-            # propagate state of humans
-            next_px = state.px + action.vx * self.time_step
-            next_py = state.py + action.vy * self.time_step
-            next_state = ObservableState(next_px, next_py, action.vx, action.vy, state.radius)
-        elif isinstance(state, FullState):
-            # propagate state of current agent
-            # perform action without rotation
-            if self.kinematics == 'holonomic':
-                next_px = state.px + action.vx * self.time_step
-                next_py = state.py + action.vy * self.time_step
-                next_state = FullState(next_px, next_py, action.vx, action.vy, state.radius,
-                                       state.gx, state.gy, state.v_pref, state.theta)
-            elif self.kinematics == 'unicycle':
-                # altered for Turtlebot:
-                next_theta = state.theta + (action.r * self.time_step)
-                next_vx = action.v * np.cos(next_theta)
-                next_vy = action.v * np.sin(next_theta)
-                if action.r == 0:
-                    next_px = state.px + action.v * np.cos(state.theta) * self.time_step
-                    next_py = state.py + action.v * np.sin(state.theta) * self.time_step
-                else:
-                    next_px = state.px + (action.v / action.r) * (
-                            np.sin(action.r * self.time_step + state.theta) - np.sin(state.theta))
-                    next_py = state.py + (action.v / action.r) * (
-                            np.cos(state.theta) - np.cos(action.r * self.time_step + state.theta))
-                next_state = FullState(next_px, next_py, next_vx, next_vy, state.radius, state.gx, state.gy,
-                                       state.v_pref, next_theta)
-            else:
-                next_theta = state.theta + action.r
-                next_vx = action.v * np.cos(next_theta)
-                next_vy = action.v * np.sin(next_theta)
-                next_px = state.px + next_vx * self.time_step
-                next_py = state.py + next_vy * self.time_step
-                next_state = FullState(next_px, next_py, next_vx, next_vy, state.radius, state.gx, state.gy,
-                                       state.v_pref, next_theta)
-        else:
-            raise ValueError('Type error')
-
-        return next_state
+        return propagate(state, action, self.time_step, self.kinematics)
 
     def predict(self, state):
         """
