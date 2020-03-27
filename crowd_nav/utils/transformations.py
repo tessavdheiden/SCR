@@ -1,13 +1,15 @@
 import numpy as np
+from crowd_sim.envs.utils.human import Human
 
-def build_occupancy_map(human, other_humans, cell_num, cell_size, om_channel_size):
+
+def build_occupancy_map(human : Human, other_agents : np.array, cell_num : int, cell_size : float, om_channel_size : int) -> np.array:
     """
     :param human_states:
     :param robot_state
     :return: tensor of shape (# human - 1, cell_num ** 2)
     """
-    other_px = other_humans[:, 0] - human.px
-    other_py = other_humans[:, 1] - human.py
+    other_px = other_agents[:, 0] - human.px
+    other_py = other_agents[:, 1] - human.py
     # new x-axis is in the direction of human's velocity
     human_velocity_angle = np.arctan2(human.vy, human.vx)
     other_human_orientation = np.arctan2(other_py, other_px)
@@ -29,9 +31,9 @@ def build_occupancy_map(human, other_humans, cell_num, cell_size, om_channel_siz
         return occupancy_map.astype(int)
     else:
         # calculate relative velocity for other agents
-        other_human_velocity_angles = np.arctan2(other_humans[:, 3], other_humans[:, 2])
+        other_human_velocity_angles = np.arctan2(other_agents[:, 3], other_agents[:, 2])
         rotation = other_human_velocity_angles - human_velocity_angle
-        speed = np.linalg.norm(other_humans[:, 2:4], axis=1)
+        speed = np.linalg.norm(other_agents[:, 2:4], axis=1)
         other_vx = np.cos(rotation) * speed
         other_vy = np.sin(rotation) * speed
         dm = [list() for _ in range(cell_num ** 2 * om_channel_size)]

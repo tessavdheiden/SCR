@@ -113,14 +113,14 @@ class MultiHumanRL(CADRL):
         :param robot_state
         :return: tensor of shape (# human - 1, self.cell_num ** 2)
         """
-        occupancy_maps = []
-        for human in human_states:
+        occupancy_maps = np.zeros((len(human_states), self.cell_num ** 2 * self.om_channel_size))
+        for i, human in enumerate(human_states):
             other_humans = np.concatenate([np.array([(other_human.px, other_human.py, other_human.vx, other_human.vy)])
                                          for other_human in human_states + [robot_state] if other_human != human], axis=0)
             dm = build_occupancy_map(human, other_humans, self.cell_num, self.cell_size, self.om_channel_size)
-            occupancy_maps.append([dm])
+            occupancy_maps[i] = dm
 
-        return torch.from_numpy(np.concatenate(occupancy_maps, axis=0)).float()
+        return torch.from_numpy(occupancy_maps).float()
 
     def make_patches(self, h, ax):
         import matplotlib.patches as patches

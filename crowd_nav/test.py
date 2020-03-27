@@ -20,7 +20,7 @@ def main():
     parser = argparse.ArgumentParser('Parse configuration file')
     parser.add_argument('--env_config', type=str, default='data/output/env.config')
     parser.add_argument('--policy_config', type=str, default='data/output/policy.config')
-    parser.add_argument('--policy', type=str, default='sarl')
+    parser.add_argument('--policy', type=str, default='scr')
     parser.add_argument('--model_dir', type=str, default=None)
     parser.add_argument('--il', default=False, action='store_true')
     parser.add_argument('--gpu', default=False, action='store_true')
@@ -110,7 +110,7 @@ def main():
         if args.video_file:
             video = Video(args.video_file)
             observation_subscribers.append(video)
-
+        t = 0
         while not done:
             action = robot.act(ob)
             ob, _, done, info = env.step(action)
@@ -118,11 +118,13 @@ def main():
             notify(observation_subscribers, env.state)
             if args.visualize:
                 ax, cmap = env.render()
-                plt.pause(.0001)
+                if t == 2:
+                    break
 
             current_pos = np.array(robot.get_position())
             logging.debug('Speed: %.2f', np.linalg.norm(current_pos - last_pos) / robot.time_step)
             last_pos = current_pos
+            t += 1
 
         if args.plot_file:
             plotter.save()
