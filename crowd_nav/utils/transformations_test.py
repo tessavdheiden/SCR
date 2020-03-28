@@ -3,8 +3,8 @@ import unittest
 import numpy as np
 from crowd_nav.utils.transformations import build_occupancy_map, propagate
 from crowd_sim.envs.utils.human import Human
-from crowd_sim.envs.utils.state import ObservableState
-from crowd_sim.envs.utils.action import ActionXY
+from crowd_sim.envs.utils.state import ObservableState, FullState
+from crowd_sim.envs.utils.action import ActionXY, ActionRot
 
 
 class BuildOccupancyMapTest(unittest.TestCase):
@@ -100,6 +100,27 @@ class PropagateTest(unittest.TestCase):
         action = ActionXY(0, 0)
         next_state = propagate(state, action, time_step=.1, kinematics='holonomic')
         self.assertEqual(next_state, state)
+
+    def test_holonomic_diagonal_up_movement(self):
+        radius = 1
+        time_step = .1
+        state = ObservableState(0, 0, 0, 0, radius)
+        action = ActionXY(np.sqrt(2), np.sqrt(2))
+        next_state = propagate(state, action, time_step=time_step, kinematics='holonomic')
+        expected_state = ObservableState(time_step * np.sqrt(2), time_step * np.sqrt(2), action.vx, action.vy, radius)
+        self.assertEqual(next_state, expected_state)
+
+    def test_non_holonomic_left_movement(self):
+        radius = 1
+        time_step = .1
+        state = FullState(0, 0, 0, 0, radius, 0, 0, 0, 0)
+        r = np.pi
+        action = ActionRot(1., r)
+        next_state = propagate(state, action, time_step=time_step, kinematics='non_holonomic')
+        expected_state = FullState(time_step * np.cos(r), time_step * np.sin(r), \
+                                         np.cos(r), np.sin(r), radius, 0, 0, 0, r)
+
+        self.assertEqual(expected_state, next_state)
 
 if __name__ == "__main__":
     unittest.main()

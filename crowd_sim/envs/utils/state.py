@@ -25,6 +25,11 @@ class FullState(State):
         return ' '.join([str(x) for x in [self.px, self.py, self.vx, self.vy, self.radius, self.gx, self.gy,
                                           self.v_pref, self.theta]])
 
+    def __eq__(self, other):
+        return all([self.px == other.px, self.py == other.py, self.vx == other.vx, self.vy == other.vy, self.radius == other.radius,
+                    self.gx == other.gx, self.gy == other.gy, self.v_pref == other.v_pref, self.theta == other.theta])
+
+
 
 class ObservableState(State):
     def __init__(self, px, py, vx, vy, radius):
