@@ -1,7 +1,7 @@
 import unittest
 
 import numpy as np
-from crowd_nav.utils.transformations import build_occupancy_map, propagate
+from crowd_nav.utils.transformations import build_occupancy_map, propagate, propagate_occupancy_map, get_states_from_occupancy_map
 from crowd_sim.envs.utils.human import Human
 from crowd_sim.envs.utils.state import ObservableState, FullState
 from crowd_sim.envs.utils.action import ActionXY, ActionRot
@@ -121,6 +121,103 @@ class PropagateTest(unittest.TestCase):
                                          np.cos(r), np.sin(r), radius, 0, 0, 0, r)
 
         self.assertEqual(expected_state, next_state)
+
+
+class PropagateOccupancyMapTest(unittest.TestCase):
+    def test_no_overlap_no_movement(self):
+        cell_num = 4
+        cell_size = 1
+        om_channel_size = 1
+        human = Human()
+        human.set(px=0, py=0, vx=0, vy=0, gx=0, gy=0, theta=0)
+        other_agents = np.zeros((1, 4)) + 100
+        occupancy_map = build_occupancy_map(human, other_agents, cell_num, cell_size, om_channel_size)
+
+        radius = 1
+        state = ObservableState(0, 0, 0, 0, radius)
+        action = ActionXY(0, 0)
+        next_state = propagate(state, action, time_step=.1, kinematics='holonomic')
+
+        next_occupancy_map = propagate_occupancy_map(occupancy_map, action, time_step=.1, kinematics='holonomic')
+        expected_next_occupancy_map = build_occupancy_map(next_state, other_agents, cell_num, cell_size, om_channel_size)
+
+        self.assertTrue(np.array_equal(next_occupancy_map, expected_next_occupancy_map))
+
+    def test_overlap_no_movement(self):
+        cell_num = 4
+        cell_size = 1
+        om_channel_size = 1
+        human = Human()
+        human.set(px=0, py=0, vx=0, vy=0, gx=0, gy=0, theta=0)
+        other_agents = np.zeros((1, 4))
+        occupancy_map = build_occupancy_map(human, other_agents, cell_num, cell_size, om_channel_size)
+
+        radius = 1
+        state = ObservableState(0, 0, 0, 0, radius)
+        action = ActionXY(0, 0)
+        next_state = propagate(state, action, time_step=.1, kinematics='holonomic')
+
+        next_occupancy_map = propagate_occupancy_map(occupancy_map, action, time_step=.1, kinematics='holonomic')
+        expected_next_occupancy_map = build_occupancy_map(next_state, other_agents, cell_num, cell_size,
+                                                          om_channel_size)
+
+        self.assertTrue(np.array_equal(next_occupancy_map, expected_next_occupancy_map))
+
+    def test_states_from_om_one_other_agent(self):
+        cell_num = 4
+        cell_size = 1
+        om_channel_size = 1
+        human = Human()
+        human.set(px=0, py=0, vx=0, vy=0, gx=0, gy=0, theta=0)
+        other_agents = np.zeros((1, 4))
+        for i in np.linspace(-2, 2, 9):
+            for j in np.linspace(-2, 2, 9):
+                other_agents[0, 0] = i
+                other_agents[0, 1] = j
+                occupancy_map = build_occupancy_map(human, other_agents, cell_num, cell_size, om_channel_size)
+                states = get_states_from_occupancy_map(occupancy_map, cell_num, cell_size, om_channel_size)
+                if states.shape[0]>0:
+                    self.assertTrue(np.allclose(states, other_agents, atol=cell_size / 2.))
+
+    def test_states_from_om_one_other_agent_with_three_channels(self):
+        cell_num = 4
+        cell_size = 1
+        om_channel_size = 3
+        human = Human()
+        human.set(px=0, py=0, vx=0, vy=0, gx=0, gy=0, theta=0)
+        other_agents = np.zeros((1, 4))
+        for i in np.linspace(-2, 2, 9):
+            for j in np.linspace(-2, 2, 9):
+                other_agents[0, 0] = i
+                other_agents[0, 1] = j
+                other_agents[0, 2] = np.random.rand(1)
+                other_agents[0, 3] = np.random.rand(1)
+                occupancy_map = build_occupancy_map(human, other_agents, cell_num, cell_size, om_channel_size)
+                states = get_states_from_occupancy_map(occupancy_map, cell_num, cell_size, om_channel_size)
+                if states.shape[0]>0:
+                    self.assertTrue(np.allclose(states, other_agents, atol=cell_size / 2.))
+
+
+# def test_overlap_movement(self):
+    #     cell_num = 4
+    #     cell_size = 1
+    #     om_channel_size = 1
+    #     human = Human()
+    #     human.set(px=0, py=0, vx=0, vy=0, gx=0, gy=0, theta=0)
+    #     other_agents = np.zeros((1, 4))
+    #     occupancy_map = build_occupancy_map(human, other_agents, cell_num, cell_size, om_channel_size)
+    #
+    #     radius = 1
+    #     state = ObservableState(0, 0, 0, 0, radius)
+    #     action = ActionXY(np.sqrt(2), np.sqrt(2))
+    #     next_state = propagate(state, action, time_step=.1, kinematics='holonomic')
+    #
+    #     next_occupancy_map = propagate_occupancy_map(occupancy_map, action, time_step=.1, kinematics='holonomic')
+    #     expected_next_occupancy_map = build_occupancy_map(next_state, other_agents, cell_num, cell_size,
+    #                                                       om_channel_size)
+    #
+    #     self.assertTrue(np.array_equal(next_occupancy_map, expected_next_occupancy_map))
+
 
 if __name__ == "__main__":
     unittest.main()

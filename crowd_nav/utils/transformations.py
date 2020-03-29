@@ -97,3 +97,25 @@ def propagate(state : State, action : Action, time_step : float, kinematics : st
 
     return next_state
 
+def get_states_from_occupancy_map(occupancy_map : np.array, cell_num : int, cell_size : float, om_channel_size : int):
+    indeces = np.nonzero(occupancy_map[0:(cell_num ** 2)])
+    states = np.zeros((indeces[0].shape[0], 4))
+    if om_channel_size == 1:
+        for i, idx in enumerate(indeces[0]):
+            row = idx // cell_num - cell_num // 2
+            col = idx % cell_num - cell_num // 2
+            states[i] = np.array([col*cell_size + cell_size / 2, row*cell_size + cell_size / 2, 0, 0])
+    else:
+        for i, idx in enumerate(indeces[0]):
+            row = idx // cell_num - cell_num // 2
+            col = idx % cell_num - cell_num // 2
+            px = col*cell_size + cell_size / 2
+            py = row*cell_size + cell_size / 2
+            vx = occupancy_map[idx + cell_num**2]
+            vy = occupancy_map[idx + cell_num**2*2]
+            states[i] = np.array([px, py, vx, vy])
+    return states
+
+
+def propagate_occupancy_map(occupancy_map, action, time_step, kinematics):
+    return occupancy_map
