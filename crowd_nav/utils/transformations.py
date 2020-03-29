@@ -117,5 +117,7 @@ def get_states_from_occupancy_map(occupancy_map : np.array, cell_num : int, cell
     return states
 
 
-def propagate_occupancy_map(occupancy_map, action, time_step, kinematics):
-    return occupancy_map
+def propagate_occupancy_map(occupancy_map, state, action, time_step, kinematics, cell_num, cell_size, om_channel_size) -> np.array:
+    states = get_states_from_occupancy_map(occupancy_map, cell_num, cell_size, om_channel_size)
+    next_state = propagate(state, action, time_step, kinematics)
+    return build_occupancy_map(next_state, states, cell_num, cell_size, om_channel_size)

@@ -133,12 +133,10 @@ class PropagateOccupancyMapTest(unittest.TestCase):
         other_agents = np.zeros((1, 4)) + 100
         occupancy_map = build_occupancy_map(human, other_agents, cell_num, cell_size, om_channel_size)
 
-        radius = 1
-        state = ObservableState(0, 0, 0, 0, radius)
         action = ActionXY(0, 0)
-        next_state = propagate(state, action, time_step=.1, kinematics='holonomic')
+        next_state = propagate(human.get_observable_state(), action, time_step=.1, kinematics='holonomic')
 
-        next_occupancy_map = propagate_occupancy_map(occupancy_map, action, time_step=.1, kinematics='holonomic')
+        next_occupancy_map = propagate_occupancy_map(occupancy_map, human.get_observable_state(), action, .1, 'holonomic', cell_num, cell_size, om_channel_size)
         expected_next_occupancy_map = build_occupancy_map(next_state, other_agents, cell_num, cell_size, om_channel_size)
 
         self.assertTrue(np.array_equal(next_occupancy_map, expected_next_occupancy_map))
@@ -156,14 +154,13 @@ class PropagateOccupancyMapTest(unittest.TestCase):
         state = ObservableState(0, 0, 0, 0, radius)
         action = ActionXY(0, 0)
         next_state = propagate(state, action, time_step=.1, kinematics='holonomic')
-
-        next_occupancy_map = propagate_occupancy_map(occupancy_map, action, time_step=.1, kinematics='holonomic')
+        next_occupancy_map = propagate_occupancy_map(occupancy_map, state, action, .1, 'holonomic', cell_num, cell_size, om_channel_size)
         expected_next_occupancy_map = build_occupancy_map(next_state, other_agents, cell_num, cell_size,
                                                           om_channel_size)
 
         self.assertTrue(np.array_equal(next_occupancy_map, expected_next_occupancy_map))
 
-    def test_states_from_om_one_other_agent(self):
+    def test_get_states_from_occupancy_map(self):
         cell_num = 4
         cell_size = 1
         om_channel_size = 1
@@ -179,7 +176,7 @@ class PropagateOccupancyMapTest(unittest.TestCase):
                 if states.shape[0]>0:
                     self.assertTrue(np.allclose(states, other_agents, atol=cell_size / 2.))
 
-    def test_states_from_om_one_other_agent_with_three_channels(self):
+    def test_get_states_from_occupancy_map_three_channels(self):
         cell_num = 4
         cell_size = 1
         om_channel_size = 3
@@ -197,27 +194,64 @@ class PropagateOccupancyMapTest(unittest.TestCase):
                 if states.shape[0]>0:
                     self.assertTrue(np.allclose(states, other_agents, atol=cell_size / 2.))
 
+    def test_propagate_occupancy_map_agent_upper_right_corner_movement_right_up(self):
+        cell_num = 4
+        cell_size = 1
+        om_channel_size = 1
+        time_step = 1
+        human = Human()
+        human.set(px=0, py=0, vx=0, vy=0, gx=0, gy=0, theta=0)
+        other_agents = np.zeros((1, 4))
+        other_agents[0, 0] = 1.5
+        other_agents[0, 1] = 1.5
+        occupancy_map = build_occupancy_map(human, other_agents, cell_num, cell_size, om_channel_size)
 
-# def test_overlap_movement(self):
-    #     cell_num = 4
-    #     cell_size = 1
-    #     om_channel_size = 1
-    #     human = Human()
-    #     human.set(px=0, py=0, vx=0, vy=0, gx=0, gy=0, theta=0)
-    #     other_agents = np.zeros((1, 4))
-    #     occupancy_map = build_occupancy_map(human, other_agents, cell_num, cell_size, om_channel_size)
-    #
-    #     radius = 1
-    #     state = ObservableState(0, 0, 0, 0, radius)
-    #     action = ActionXY(np.sqrt(2), np.sqrt(2))
-    #     next_state = propagate(state, action, time_step=.1, kinematics='holonomic')
-    #
-    #     next_occupancy_map = propagate_occupancy_map(occupancy_map, action, time_step=.1, kinematics='holonomic')
-    #     expected_next_occupancy_map = build_occupancy_map(next_state, other_agents, cell_num, cell_size,
-    #                                                       om_channel_size)
-    #
-    #     self.assertTrue(np.array_equal(next_occupancy_map, expected_next_occupancy_map))
+        action = ActionXY(1, 1)
+        next_state = propagate(human.get_observable_state(), action, time_step, kinematics='holonomic')
+        next_occupancy_map = propagate_occupancy_map(occupancy_map, human.get_observable_state(), action, time_step, 'holonomic', cell_num, cell_size, om_channel_size)
+        expected_next_occupancy_map = build_occupancy_map(next_state, other_agents, cell_num, cell_size,
+                                                          om_channel_size)
+        self.assertTrue(np.array_equal(next_occupancy_map, expected_next_occupancy_map))
 
+    def test_propagate_occupancy_map_agent_lower_left_corner_movement_left_low(self):
+        cell_num = 4
+        cell_size = 1
+        om_channel_size = 1
+        time_step = 1
+        human = Human()
+        human.set(px=0, py=0, vx=0, vy=0, gx=0, gy=0, theta=0)
+        other_agents = np.zeros((1, 4))
+        other_agents[0, 0] = -1.5
+        other_agents[0, 1] = -1.5
+        occupancy_map = build_occupancy_map(human, other_agents, cell_num, cell_size, om_channel_size)
+
+        action = ActionXY(-1, -1)
+        next_state = propagate(human.get_observable_state(), action, time_step, kinematics='holonomic')
+        next_occupancy_map = propagate_occupancy_map(occupancy_map, human.get_observable_state(), action, time_step, 'holonomic', cell_num, cell_size, om_channel_size)
+        expected_next_occupancy_map = build_occupancy_map(next_state, other_agents, cell_num, cell_size,
+                                                          om_channel_size)
+
+        self.assertTrue(np.array_equal(next_occupancy_map, expected_next_occupancy_map))
+
+    def test_propagate_occupancy_map_agent_center_movement_left_low_channel_size_three(self):
+        cell_num = 4
+        cell_size = 1
+        om_channel_size = 3
+        time_step = .1
+        human = Human()
+        human.set(px=0, py=0, vx=0, vy=0, gx=0, gy=0, theta=0)
+        other_agents = np.zeros((1, 4))
+        other_agents[0, 0] = -1.5
+        other_agents[0, 1] = 1.5
+        occupancy_map = build_occupancy_map(human, other_agents, cell_num, cell_size, om_channel_size)
+
+        action = ActionXY(-1, -1)
+        next_state = propagate(human.get_observable_state(), action, time_step, kinematics='holonomic')
+        next_occupancy_map = propagate_occupancy_map(occupancy_map, human.get_observable_state(), action, time_step, 'holonomic', cell_num, cell_size, om_channel_size)
+        expected_next_occupancy_map = build_occupancy_map(next_state, other_agents, cell_num, cell_size,
+                                                          om_channel_size)
+
+        self.assertTrue(np.array_equal(next_occupancy_map, expected_next_occupancy_map))
 
 if __name__ == "__main__":
     unittest.main()
