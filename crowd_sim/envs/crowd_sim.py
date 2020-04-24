@@ -2,6 +2,7 @@ import logging
 import gym
 import matplotlib.lines as mlines
 import configparser
+import matplotlib.pylab as plt
 
 import numpy as np
 import rvo2
@@ -113,6 +114,15 @@ class CrowdSim(gym.Env):
 
     def set_humans(self, humans):
         self.humans = humans
+
+    def set_interactive_human(self):
+        self.create_fig()
+        self.fig.canvas.mpl_connect('key_press_event', self.on_click)
+        self.humans[0].set(-4, 0, 4, 0, 0, 0, 0)
+
+        goal = mlines.Line2D([4], [-4], color='red', marker='*', linestyle='None', markersize=15,
+                             label='Goal')
+        self.ax.add_artist(goal)
 
     def generate_static_human(self, i):
         if i == self.human_num - 1:
@@ -437,22 +447,25 @@ class CrowdSim(gym.Env):
 
         return ob, reward, done, info
 
+    def create_fig(self):
+        fig, ax = plt.subplots(figsize=(7, 7))
+        self.fig = fig
+        self.ax = ax
+        self.cmap = plt.cm.get_cmap('hsv', 5)
+
     def reset_axis(self):
         assert self.ax
         self.ax.clear()
         goal = mlines.Line2D([0], [self.circle_radius], color='red', marker='*', linestyle='None', markersize=15, label='Goal')
         self.ax.add_artist(goal)
+        goal = mlines.Line2D([4], [0], color='red', marker='*', linestyle='None', markersize=15, label='Goal', fillstyle='none')
+        self.ax.add_artist(goal)
         self.ax.set_xlim(-6, 6)
         self.ax.set_ylim(-6, 6)
 
     def render(self, mode='human'):
-        import matplotlib.pylab as plt
-
         if not self.fig:
-            fig, ax = plt.subplots(figsize=(7, 7))
-            self.fig = fig
-            self.ax = ax
-            self.cmap = plt.cm.get_cmap('hsv', 5)
+            self.create_fig()
 
         if mode == 'human':
             self.reset_axis()
@@ -460,11 +473,15 @@ class CrowdSim(gym.Env):
                 human_circle = plt.Circle(human.get_position(), human.radius, fill=False, color=self.cmap(i))
                 self.ax.add_artist(human_circle)
             self.ax.add_artist(plt.Circle(self.robot.get_position(), self.robot.radius, fill=True, color='k', fc='orange'))
-
-            return self.ax, self.cmap
+            plt.pause(.0001)
         else:
             raise NotImplementedError
 
+
+
+    def on_click(self, event):
+        #self.humans[0].policy.key_release(event.key)
+        self.humans[0].policy.key_press(event.key)
 
 
 

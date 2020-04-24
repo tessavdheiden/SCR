@@ -26,8 +26,7 @@ class FullState(State):
                                           self.v_pref, self.theta]])
 
     def __eq__(self, other):
-        return all([self.px == other.px, self.py == other.py, self.vx == other.vx, self.vy == other.vy, self.radius == other.radius,
-                    self.gx == other.gx, self.gy == other.gy, self.v_pref == other.v_pref, self.theta == other.theta])
+        return all([self.px == other.px, self.py == other.py, self.vx == other.vx, self.vy == other.vy, self.radius == other.radius])
 
 
 

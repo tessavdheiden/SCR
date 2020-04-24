@@ -5,6 +5,7 @@ import os
 import torch
 import numpy as np
 import gym
+import matplotlib.pyplot as plt
 
 from crowd_nav.utils.explorer import Explorer
 from crowd_nav.policy.policy_factory import policy_factory
@@ -72,8 +73,10 @@ def main():
     env.set_robot(robot)
 
     humans = [Human() for _ in range(env.human_num)]
-    for human in humans:
+    for i, human in enumerate(humans):
         human.configure(args.env_config, 'humans')
+    interactive = policy_factory['interactive']()
+    humans[0].set_policy(interactive)
     env.set_humans(humans)
 
     if args.square:
@@ -81,62 +84,52 @@ def main():
     if args.circle:
         env.test_sim = 'circle_crossing'
 
-    explorer = Explorer(env, robot, device, gamma=0.9)
-
     policy.set_phase(args.phase)
     policy.set_device(device)
     # set safety space for ORCA in non-cooperative simulation
     if isinstance(robot.policy, ORCA):
-        if robot.visible:
-            robot.policy.safety_space = 0
-        else:
-            robot.policy.safety_space = 0
+        robot.policy.safety_space = 0
         logging.info('ORCA agent buffer: %f', robot.policy.safety_space)
 
     policy.set_env(env)
     robot.print_info()
 
-    if args.visualize:
-        import matplotlib.pyplot as plt
-        ob = env.reset(args.phase, args.test_case)
-        done = False
-        last_pos = np.array(robot.get_position())
+    ob = env.reset(args.phase, args.test_case)
+    env.set_interactive_human()
+    last_pos = np.array(robot.get_position())
+    observation_subscribers = []
 
-        observation_subscribers = []
+    if args.plot_file:
+        plotter = Plotter(args.plot_file)
+        observation_subscribers.append(plotter)
+    if args.video_file:
+        video = Video(args.video_file)
+        observation_subscribers.append(video)
+    t = 0
+    while not env.humans[0].reached_destination():
+        action = robot.act(ob)
+        ob, _, done, info = env.step(action)
 
-        if args.plot_file:
-            plotter = Plotter(args.plot_file)
-            observation_subscribers.append(plotter)
-        if args.video_file:
-            video = Video(args.video_file)
-            observation_subscribers.append(video)
-        t = 0
-        while not done:
-            action = robot.act(ob)
-            ob, _, done, info = env.step(action)
+        notify(observation_subscribers, env.state)
+        if args.visualize:
+            env.render()
 
-            notify(observation_subscribers, env.state)
-            if args.visualize:
-                ax, cmap = env.render()
-                if t == 2:
-                    break
+        current_pos = np.array(robot.get_position())
+        logging.debug('Speed: %.2f', np.linalg.norm(current_pos - last_pos) / robot.time_step)
+        last_pos = current_pos
+        t += 1
+        if t == 100:
+            break
 
-            current_pos = np.array(robot.get_position())
-            logging.debug('Speed: %.2f', np.linalg.norm(current_pos - last_pos) / robot.time_step)
-            last_pos = current_pos
-            t += 1
+    if args.plot_file:
+        plotter.save()
+    if args.video_file:
+        video.make()
 
-        if args.plot_file:
-            plotter.save()
-        if args.video_file:
-            video.make([robot.policy.draw_attention, robot.policy.draw_observation])
-
-        logging.info('It takes %.2f seconds to finish. Final status is %s', env.global_time, info)
-        if robot.visible and info == 'reach goal':
-            human_times = env.get_human_times()
-            logging.info('Average time for humans to reach goal: %.2f', sum(human_times) / len(human_times))
-    else:
-        explorer.run_k_episodes(env.case_size[args.phase], args.phase, print_failure=True)
+    logging.info('It takes %.2f seconds to finish. Final status is %s', env.global_time, info)
+    if robot.visible and info == 'reach goal':
+        human_times = env.get_human_times()
+        logging.info('Average time for humans to reach goal: %.2f', sum(human_times) / len(human_times))
 
 
 if __name__ == '__main__':

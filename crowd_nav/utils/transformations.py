@@ -97,6 +97,7 @@ def propagate(state : State, action : Action, time_step : float, kinematics : st
 
     return next_state
 
+
 def get_states_from_occupancy_map(occupancy_map : np.array, cell_num : int, cell_size : float, om_channel_size : int):
     indeces = np.nonzero(occupancy_map[0:(cell_num ** 2)])
     states = np.zeros((indeces[0].shape[0], 4))

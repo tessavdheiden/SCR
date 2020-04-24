@@ -58,6 +58,12 @@ class Video(ObservationSubscriber):
         goal = mlines.Line2D([location[0]], [location[1]], color='red', marker='*', linestyle='None', markersize=15, label='Goal')
         self.ax.add_artist(goal)
 
+    def add_human_goals(self):
+        for i, h in enumerate(self.frames[0][1]):
+            location = h.goal_position
+            goal = mlines.Line2D([location[0]], [location[1]], color='red', marker='*', linestyle='None', markersize=15, fillstyle='none')
+            self.ax.add_artist(goal)
+
     def add_robot_orientation(self):
         theta = np.arctan2(self.frames[0][0].vy, self.frames[0][0].vx)
         orientation = ((0, 0), (self.frames[0][0].radius * np.cos(theta), self.frames[0][0].radius * np.sin(theta)))
@@ -82,6 +88,7 @@ class Video(ObservationSubscriber):
         self.add_robot_circle()
         self.add_goal()
         self.add_human_circles()
+        self.add_human_goals()
         self.add_robot_orientation()
         self.add_human_orientations()
         self.add_text()
