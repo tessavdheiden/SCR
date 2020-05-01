@@ -10,6 +10,8 @@ from crowd_nav.empowerment.source import Source
 from crowd_nav.empowerment.planning import Planning
 from crowd_nav.empowerment.transition import Transition
 
+from crowd_nav.utils.transformations import build_occupancy_map_torch
+
 
 class EmpowermentNetwork(nn.Module):
     def __init__(self, state_nb):
@@ -17,8 +19,9 @@ class EmpowermentNetwork(nn.Module):
         self.source = Source(state_nb, 2)
         self.planning = Planning(state_nb, 2)
         self.transition = Transition(state_nb, 2)
-        self.optimizer = optim.SGD(list(self.source.parameters()) + list(self.transition.parameters()) +
-                                   list(self.planning.parameters()), lr=1e-4, momentum=0.9)
+        self.params = list(self.source.parameters()) + list(self.planning.parameters())
+        self.optimizer = optim.SGD(self.params, lr=1e-4, momentum=0.9)
+        self.optimizer_transition = optim.SGD(self.transition.parameters(), lr=1e-4, momentum=0.9)
 
     def forward(self, human_state):
         """
@@ -30,7 +33,7 @@ class EmpowermentNetwork(nn.Module):
         mu, sigma = self.source(human_state)
         dist_source = Normal(mu, sigma)
         sample = dist_source.rsample()
-        human_next_state = self.transition.select_state(sample, human_state)
+        human_next_state = self.transition(sample, human_state)
         mu_p, sigma_p = self.planning(human_state, human_next_state)
         dist_plan = Normal(mu_p, sigma_p)
 
@@ -50,9 +53,9 @@ class SCR(SARL):
         mlp3_dims = [int(x) for x in config.get('sarl', 'mlp3_dims').split(', ')]
         attention_dims = [int(x) for x in config.get('sarl', 'attention_dims').split(', ')]
         self.with_om = config.getboolean('sarl', 'with_om')
-        if not self.with_om:
-            raise AttributeError('SCR needs occupancy maps!')
+        if not self.with_om: raise AttributeError('SCR needs occupancy maps!')
         with_global_state = config.getboolean('sarl', 'with_global_state')
+
         self.model = ValueNetwork(self.input_dim(), self.self_state_dim, mlp1_dims, mlp2_dims, mlp3_dims,
                                   attention_dims, with_global_state, self.cell_size, self.cell_num)
         self.multiagent_training = config.getboolean('sarl', 'multiagent_training')
@@ -62,26 +65,61 @@ class SCR(SARL):
         self.beta = config.getfloat('scr', 'beta')
         logging.info('Policy: {} {} global state'.format(self.name, 'w/' if with_global_state else 'w/o'))
 
-    def get_occupancy_maps(self, joint_state):
-        return joint_state[:, :, -self.occupancy_map_dim:]
+    def get_human_next_state(self, state):
+        """
+        Propagates a state of a human from its current state.
+        :param state: tensor of shape (5, ) px, py, vx, vy, radius
+        :return: tensor of shape (5, )
+        """
+        next_px = state[0] + state[2] * self.time_step
+        next_py = state[1] + state[3] * self.time_step
+        return torch.tensor([next_px, next_py, state[2], state[3], state[4]])
 
     def update(self, data):
-        inputs, values, _ = data
-        inputs = Variable(inputs)
-        values = Variable(values)
-        human_states = Variable(self.get_occupancy_maps(inputs))
+        joint_states, values, human_states = data
+        n_batch, n_humans, n_states = human_states.shape
 
+        joint_states = Variable(joint_states)
+        values = Variable(values)
+        human_occupancy_maps = Variable(joint_states[:, :, -self.occupancy_map_dim:]).view(-1, self.occupancy_map_dim)
+        human_states = Variable(human_states)
+
+        # Compute empowerment and update source and planning
         self.empowerment.optimizer.zero_grad()
-        estimate = self.empowerment(human_states).mean(-1).mean(-1)
+        estimate = self.empowerment.forward(human_occupancy_maps).mean(-1) # take mean over cells
         loss = - estimate.mean()
         loss.backward(retain_graph=True)
-        nn.utils.clip_grad_norm_(list(self.empowerment.planning.parameters()) + list(self.empowerment.source.parameters())+ list(self.empowerment.transition.parameters()),
-                                 self.max_grad_norm)
+        nn.utils.clip_grad_norm_(self.empowerment.params, self.max_grad_norm)
         self.empowerment.optimizer.step()
 
+        # Train transition
+        self.empowerment.optimizer_transition.zero_grad()
+        prediction = self.empowerment.transition(human_states[:, :, 2:4].view(-1, 2), human_occupancy_maps)
+        human_oms_next = torch.zeros(n_batch, n_humans, self.occupancy_map_dim)
+
+        # Propagate human states and compute occupancy maps
+        for i, scene in enumerate(human_states):
+            for j, human in enumerate(scene):
+                # propagate human
+                human_next = self.get_human_next_state(human)
+                others = torch.zeros(n_humans, n_states)
+                for k, other in enumerate(scene):
+                    if k == j: continue
+                    others[k % (n_humans -1)] = other
+
+                #robot_state = joint_states[i, j, :self.joint_state_dim] # add robot state
+                #others[-1] = torch.tensor([robot_state[6] - human[0], robot_state[7] - human[1], robot_state[4], robot_state[5], robot_state[3]])
+                human_oms_next[i, j, :] = build_occupancy_map_torch(human_next, others, self.cell_num, self.cell_size, self.om_channel_size)
+
+        error = self.criterion(prediction, human_oms_next.view(-1, self.occupancy_map_dim))
+        error.backward()
+        nn.utils.clip_grad_norm_(self.empowerment.transition.parameters(), self.max_grad_norm)
+        self.empowerment.optimizer_transition.step()
+
+        # train value network wit empowerment
         self.optimizer.zero_grad()
-        outputs = self.model(inputs)
-        loss = self.criterion(outputs, values + self.beta * estimate.view(-1, 1))
+        outputs = self.model(joint_states)
+        loss = self.criterion(outputs, (1 - self.beta) * values + self.beta * estimate.view(n_batch, n_humans).mean(-1).view(-1, 1))
         loss.backward()
         self.optimizer.step()
 

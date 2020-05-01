@@ -1,4 +1,6 @@
 import numpy as np
+import torch
+
 from crowd_sim.envs.utils.human import Human
 from crowd_sim.envs.utils.state import State, ObservableState, FullState
 from crowd_sim.envs.utils.action import Action
@@ -6,12 +8,14 @@ from crowd_sim.envs.utils.action import Action
 
 def build_occupancy_map(human : Human, other_agents : np.array, cell_num : int, cell_size : float, om_channel_size : int) -> np.array:
     """
-    :param human_states:
-    :param robot_state
-    :return: tensor of shape (# human - 1, cell_num ** 2)
+    Builds the occupancy map centered around a human from the agents around it.
+    :param human: the human with its states
+    :param other_agents: an array of shape (# agents - 1, 4) for 4 states: px, py, vx, vy
+    :return: array of shape (cell_num ** 2)
     """
     other_px = other_agents[:, 0] - human.px
     other_py = other_agents[:, 1] - human.py
+
     # new x-axis is in the direction of human's velocity
     human_velocity_angle = np.arctan2(human.vy, human.vx)
     other_human_orientation = np.arctan2(other_py, other_px)
@@ -53,6 +57,62 @@ def build_occupancy_map(human : Human, other_agents : np.array, cell_num : int, 
         for i, cell in enumerate(dm):
             dm[i] = sum(dm[i]) / len(dm[i]) if len(dm[i]) != 0 else 0
         return dm
+
+
+def build_occupancy_map_torch(human: torch.Tensor, other_agents: torch.Tensor, cell_num: int, cell_size: float,
+                        om_channel_size: int) -> torch.Tensor:
+    """
+    Builds the occupancy map centered around a human from the agents around it.
+    :param human: the human with its states
+    :param other_agents: an array of shape (# agents - 1, 5) for 5 states
+    :return: array of shape (cell_num ** 2)
+    """
+    other_px = other_agents[:, 0] - human[0]
+    other_py = other_agents[:, 1] - human[1]
+
+    # new x-axis is in the direction of human's velocity
+    human_velocity_angle = torch.atan2(human[1], human[0])
+    other_human_orientation = torch.atan2(other_py, other_px)
+    rotation = other_human_orientation - human_velocity_angle
+    distance = torch.norm(torch.cat([other_px.view(-1, 1), other_py.view(-1, 1)], axis=1), dim=1)
+    other_px = torch.cos(rotation) * distance
+    other_py = torch.sin(rotation) * distance
+
+    # compute indices of humans in the grid
+    other_x_index = torch.floor(other_px / cell_size + cell_num / 2)
+    other_y_index = torch.floor(other_py / cell_size + cell_num / 2)
+    other_x_index[other_x_index < 0] = float('-inf')
+    other_x_index[other_x_index >= cell_num] = float('-inf')
+    other_y_index[other_y_index < 0] = float('-inf')
+    other_y_index[other_y_index >= cell_num] = float('-inf')
+    grid_indices = cell_num * other_y_index + other_x_index
+
+    # calculate relative velocity for other agents
+    other_human_velocity_angles = torch.atan2(other_agents[:, 3], other_agents[:, 2])
+    rotation = other_human_velocity_angles - human_velocity_angle
+    speed = torch.norm(other_agents[:, 2:4],dim=1)
+    other_vx = torch.cos(rotation) * speed
+    other_vy = torch.sin(rotation) * speed
+
+    # occupy map
+    dm = torch.zeros(3, cell_num ** 2)
+    for i, index in np.ndenumerate(grid_indices):
+        if index in range(cell_num ** 2):
+            dm[0, int(index)] += 1
+            dm[1, int(index)] += other_vx[i]
+            dm[2, int(index)] += other_vy[i]
+
+    mask = dm[0, :] != 0
+    count = dm[0, mask]
+    dm[0:3, mask] /= count
+
+    if om_channel_size == 1:
+        return dm[0, :].view(-1)
+    elif om_channel_size == 2:
+        return dm[1:3, :].view(-1)
+    else:
+        return dm.view(-1)
+
 
 
 def propagate(state : State, action : Action, time_step : float, kinematics : str) -> State:

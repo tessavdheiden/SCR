@@ -183,8 +183,8 @@ class CADRL(Policy):
     def rotate(self, state):
         """
         Transform the coordinate to agent-centric.
-        Input state tensor is of size (batch_size, state_length)
-
+        :param: state: Input state tensor is of size (batch_size, state_length)
+        :return new_state: State tensor of size (batch_size, 13), relative to robot
         """
         # 'px', 'py', 'vx', 'vy', 'radius', 'gx', 'gy', 'v_pref', 'theta', 'px1', 'py1', 'vx1', 'vy1', 'radius1'
         #  0     1      2     3      4        5     6      7         8       9     10      11     12       13
@@ -215,4 +215,6 @@ class CADRL(Policy):
         da = torch.norm(torch.cat([(state[:, 0] - state[:, 9]).reshape((batch, -1)), (state[:, 1] - state[:, 10]).
                                   reshape((batch, -1))], dim=1), 2, dim=1, keepdim=True)
         new_state = torch.cat([dg, v_pref, theta, radius, vx, vy, px1, py1, vx1, vy1, radius1, da, radius_sum], dim=1)
+        # 'dg', 'v_pref', 'theta', 'radius', 'vx', 'vy', 'px1', 'py1', 'vx1', 'vy1','radius1', 'da', 'radius_sum'
+        #  0     1          2       3         4      5     6      7       8     9     10         11     12
         return new_state

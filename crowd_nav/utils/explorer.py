@@ -61,8 +61,6 @@ class Explorer(object):
             action = self.robot.act(ob)
             ob, reward, done, info = self.env.step(action)
             notify(observation_subscribers, self.env.state)
-            self.env.render()
-            plt.pause(.001)
 
             actions.append(action)
             rewards.append(reward)
@@ -72,7 +70,7 @@ class Explorer(object):
                 min_dist.append(info.min_dist)
 
         if video_file:
-            video.make([self.robot.policy.draw_attention, self.robot.policy.draw_observation])
+            video.make()
         if plot_file:
             plotter.save()
         plt.close()
@@ -152,7 +150,7 @@ class Explorer(object):
             if update_memory:
                 if isinstance(info, ReachGoal) or isinstance(info, Collision):
                     # only add positive(success) or negative(collision) experience in experience set
-                    self.update_memory(states, human_states, actions, rewards, imitation_learning)
+                    self.update_memory(states, human_states, rewards, imitation_learning)
 
             cumulative_rewards.append(sum([pow(self.gamma, t * self.robot.time_step * self.robot.v_pref)
                                            * reward for t, reward in enumerate(rewards)]))
@@ -162,7 +160,7 @@ class Explorer(object):
         assert success + collision + timeout == k
         avg_nav_time = sum(success_times) / len(success_times) if success_times else self.env.time_limit
 
-        extra_info = '' if episode is None else 'in episode {} '.format(episode)
+        extra_info = '' if episode is None else f'in episode {episode} '
         logging.info('{:<5} {}has success rate: {:.2f}, collision rate: {:.2f}, nav time: {:.2f}, total reward: {:.4f}'.
                      format(phase.upper(), extra_info, success_rate, collision_rate, avg_nav_time,
                             average(cumulative_rewards)))
@@ -175,7 +173,12 @@ class Explorer(object):
             logging.info('Collision cases: ' + ' '.join([str(x) for x in collision_cases]))
             logging.info('Timeout cases: ' + ' '.join([str(x) for x in timeout_cases]))
 
-    def update_memory(self, states, human_states, actions, rewards, imitation_learning=False):
+    def update_memory(self, states, human_states, rewards, imitation_learning=False):
+        """
+        Updates the memory with experiences.
+        :param states: tensor of shape (# agents, dim joint state)
+        :param human_states: a list of len (# agents) of observable states
+        """
         if self.memory is None or self.gamma is None:
             raise ValueError('Memory or gamma value is not set!')
 

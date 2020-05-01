@@ -22,10 +22,3 @@ class Transition(nn.Module):
         out = self.fc3(out)
         out = self.tanh(out)
         return out
-
-    def select_state(self, x, z):
-        batch_size, _, _ = x.shape
-        x = x.view(-1, self.nb_actions)
-        z = z.view(-1, self.nb_states)
-        out = self.forward(x, z)
-        return out.view(batch_size, -1, self.nb_states)

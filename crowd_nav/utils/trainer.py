@@ -35,10 +35,12 @@ class Trainer(object):
         return average_epoch_loss
 
     def optimize_batch(self, num_batches):
-        if self.policy.optimizer is None:
-            raise ValueError('Learning rate is not set!')
+        if self.policy.optimizer is None: raise ValueError('Learning rate is not set!')
+
+        if len(self.memory) < self.batch_size: raise ValueError('Not enough experiences collected!')
+
         if self.data_loader is None:
-            self.data_loader = DataLoader(self.memory, self.batch_size, shuffle=True)
+            self.data_loader = DataLoader(self.memory, self.batch_size)
         losses = 0
         for _ in range(num_batches):
             data = next(iter(self.data_loader))
