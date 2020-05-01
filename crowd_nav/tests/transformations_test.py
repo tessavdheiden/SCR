@@ -1,7 +1,9 @@
 import unittest
 
 import numpy as np
-from crowd_nav.utils.transformations import build_occupancy_map, propagate, propagate_occupancy_map, get_states_from_occupancy_map
+import torch
+
+from crowd_nav.utils.transformations import build_occupancy_map, propagate, propagate_occupancy_map, get_states_from_occupancy_map, build_occupancy_map_torch
 from crowd_sim.envs.utils.human import Human
 from crowd_sim.envs.utils.state import ObservableState, FullState
 from crowd_sim.envs.utils.action import ActionXY, ActionRot
@@ -92,6 +94,20 @@ class BuildOccupancyMapTest(unittest.TestCase):
         expected_result[15 + cell_num ** 2] = 1
         expected_result[15 + cell_num ** 2 * 2] = 2
         self.assertTrue(np.allclose(result, expected_result, atol=1e-5))
+
+
+class BuildOccupancyMapTorchTest(unittest.TestCase):
+    def test_output_tensor(self):
+        cell_num = 4
+        cell_size = 1
+        om_channel_size = 1
+        human = torch.rand(4)
+        others = torch.rand(5, 4)
+        t = build_occupancy_map_torch(human, others, cell_num, cell_size, om_channel_size)
+        self.assertIsInstance(t, torch.Tensor)
+        self.assertEqual(t.shape[0], cell_num**2*om_channel_size)
+
+
 
 class PropagateTest(unittest.TestCase):
     def test_no_movement(self):

@@ -72,6 +72,7 @@ def main():
     robot.set_policy(policy)
     env.set_robot(robot)
 
+    env.human_num = 1
     humans = [Human() for _ in range(env.human_num)]
     for i, human in enumerate(humans):
         human.configure(args.env_config, 'humans')

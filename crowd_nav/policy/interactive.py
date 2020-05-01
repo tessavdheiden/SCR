@@ -1,7 +1,5 @@
-import numpy as np
 from crowd_sim.envs.policy.policy import Policy
 from crowd_sim.envs.utils.action import ActionXY
-from pyglet.window import key
 
 
 class Interactive(Policy):
@@ -17,7 +15,6 @@ class Interactive(Policy):
         assert True
 
     def predict(self, state):
-        #print(state.self_state)
         vx = 0
         vy = 0
         if self.move[0]: vx = -1
@@ -25,7 +22,6 @@ class Interactive(Policy):
         if self.move[2]: vy = 1
         if self.move[3]: vy = -1
         action = ActionXY(vx, vy)
-        print(f"actionvx = {action.vx}, actionvx = {action.vy}")
         return action
 
     # keyboard event callbacks
