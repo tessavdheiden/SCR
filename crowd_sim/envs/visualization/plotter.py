@@ -69,7 +69,7 @@ class Plotter(ObservationSubscriber):
                 for human_direction in human_directions:
                     ax.add_artist(human_direction)
         plt.legend([robot], ['Robot'], fontsize=16)
-        plt.show(block=False)
         plt.savefig(self.file)
+        plt.close(fig)
 
 

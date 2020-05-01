@@ -163,3 +163,5 @@ class Video(ObservationSubscriber):
             writer = ffmpeg_writer(fps=8, metadata=dict(artist='Me'), bitrate=1800)
             anim.save(self.file, writer=writer)
 
+        plt.close(self.fig)
+
