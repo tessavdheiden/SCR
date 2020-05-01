@@ -59,6 +59,7 @@ class SCR(SARL):
         self.model = ValueNetwork(self.input_dim(), self.self_state_dim, mlp1_dims, mlp2_dims, mlp3_dims,
                                   attention_dims, with_global_state, self.cell_size, self.cell_num)
         self.multiagent_training = config.getboolean('sarl', 'multiagent_training')
+        self.time_step = .25
 
         self.occupancy_map_dim = self.cell_num ** 2 * self.om_channel_size
         self.empowerment = EmpowermentNetwork(state_nb=self.occupancy_map_dim)
@@ -76,13 +77,13 @@ class SCR(SARL):
         return torch.tensor([next_px, next_py, state[2], state[3], state[4]])
 
     def update(self, data):
-        joint_states, values, human_states = data
-        n_batch, n_humans, n_states = human_states.shape
+        joint_states, values, states = data
+        n_batch, n_humans, _ = joint_states.shape
+        _, _, n_states = states.shape
 
         joint_states = Variable(joint_states)
         values = Variable(values)
         human_occupancy_maps = Variable(joint_states[:, :, -self.occupancy_map_dim:]).view(-1, self.occupancy_map_dim)
-        human_states = Variable(human_states)
 
         # Compute empowerment and update source and planning
         self.empowerment.optimizer.zero_grad()
@@ -92,9 +93,12 @@ class SCR(SARL):
         nn.utils.clip_grad_norm_(self.empowerment.params, self.max_grad_norm)
         self.empowerment.optimizer.step()
 
-        # Train transition
-        self.empowerment.optimizer_transition.zero_grad()
-        prediction = self.empowerment.transition(human_states[:, :, 2:4].view(-1, 2), human_occupancy_maps)
+        # Train transition, sanity check: print(human_actions[4, 3]), print(human_actions.reshape(-1, 2)[23])
+        states = Variable(states)
+
+        human_states = states[:, :-1]
+        human_actions = human_states[:, :, 2:4]
+        prediction = self.empowerment.transition(human_actions.reshape(-1, 2), human_occupancy_maps) # not add robot,
         human_oms_next = torch.zeros(n_batch, n_humans, self.occupancy_map_dim)
 
         # Propagate human states and compute occupancy maps
@@ -102,15 +106,16 @@ class SCR(SARL):
             for j, human in enumerate(scene):
                 # propagate human
                 human_next = self.get_human_next_state(human)
-                others = torch.zeros(n_humans, n_states)
+                others = torch.zeros(n_humans, n_states) # including robot
                 for k, other in enumerate(scene):
-                    if k == j: continue
-                    others[k % (n_humans -1)] = other
+                    if k == j:
+                        others[k] = states[i, -1] # put robot state at human's own state
+                    else:
+                        others[k] = other
 
-                #robot_state = joint_states[i, j, :self.joint_state_dim] # add robot state
-                #others[-1] = torch.tensor([robot_state[6] - human[0], robot_state[7] - human[1], robot_state[4], robot_state[5], robot_state[3]])
                 human_oms_next[i, j, :] = build_occupancy_map_torch(human_next, others, self.cell_num, self.cell_size, self.om_channel_size)
 
+        self.empowerment.optimizer_transition.zero_grad()
         error = self.criterion(prediction, human_oms_next.view(-1, self.occupancy_map_dim))
         error.backward()
         nn.utils.clip_grad_norm_(self.empowerment.transition.parameters(), self.max_grad_norm)

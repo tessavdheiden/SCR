@@ -116,16 +116,16 @@ class Explorer(object):
         for i in range(k):
             ob = self.env.reset(phase)
             done = False
-            states = []
+            joined_states = []
             actions = []
             rewards = []
-            human_states = []
+            states = []
             while not done:
                 action = self.robot.act(ob)
                 ob, reward, done, info = self.env.step(action)
 
-                states.append(self.robot.policy.last_state)
-                human_states.append(ob)
+                joined_states.append(self.robot.policy.last_state)
+                states.append(ob + [self.robot.get_observable_state()])
                 actions.append(action)
                 rewards.append(reward)
 
@@ -150,7 +150,7 @@ class Explorer(object):
             if update_memory:
                 if isinstance(info, ReachGoal) or isinstance(info, Collision):
                     # only add positive(success) or negative(collision) experience in experience set
-                    self.update_memory(states, human_states, rewards, imitation_learning)
+                    self.update_memory(joined_states, states, rewards, imitation_learning)
 
             cumulative_rewards.append(sum([pow(self.gamma, t * self.robot.time_step * self.robot.v_pref)
                                            * reward for t, reward in enumerate(rewards)]))
@@ -173,49 +173,37 @@ class Explorer(object):
             logging.info('Collision cases: ' + ' '.join([str(x) for x in collision_cases]))
             logging.info('Timeout cases: ' + ' '.join([str(x) for x in timeout_cases]))
 
-    def update_memory(self, states, human_states, rewards, imitation_learning=False):
+    def update_memory(self, joined_states, states, rewards, imitation_learning=False):
         """
         Updates the memory with experiences.
-        :param states: tensor of shape (# agents, dim joint state)
-        :param human_states: a list of len (# agents) of observable states
+        :param joined_states: a list of len (# experience in episode, # agents) of rotated states (if not IL)
+        :param states: a list of len (# experience in episode, # agents) of observable states
         """
         if self.memory is None or self.gamma is None:
             raise ValueError('Memory or gamma value is not set!')
 
-        for i, state in enumerate(states):
+        for i in range(len(joined_states)):
             reward = rewards[i]
+            joined_state = joined_states[i]
+            state = torch.Tensor([(s.px, s.py, s.vx, s.vy, s.radius) for s in states[i]]).to(self.device)
 
             # VALUE UPDATE
             if imitation_learning:
-                h_s = torch.Tensor([(s.px, s.py, s.vx, s.vy, s.radius) for s in state.human_states]).to(
-                    self.device)
                 # define the value of states in IL as cumulative discounted rewards, which is the same in RL
-                state = self.target_policy.transform(state)
+                joined_state = self.target_policy.transform(joined_state)
                 # value = pow(self.gamma, (len(states) - 1 - i) * self.robot.time_step * self.robot.v_pref)
                 value = sum([pow(self.gamma, max(t - i, 0) * self.robot.time_step * self.robot.v_pref) * reward
                              * (1 if t >= i else 0) for t, reward in enumerate(rewards)])
             else:
-                h_s = torch.Tensor([(s.px, s.py, s.vx, s.vy, s.radius) for s in human_states[i]]).to(
-                    self.device)
-                if i == len(states) - 1:
+                if i == len(joined_states) - 1:
                     # terminal state
                     value = reward
                 else:
-                    next_state = states[i + 1]
+                    next_state = joined_states[i + 1]
                     gamma_bar = pow(self.gamma, self.robot.time_step * self.robot.v_pref)
                     value = reward + gamma_bar * self.target_model(next_state.unsqueeze(0)).data.item()
             value = torch.Tensor([value]).to(self.device)
-
-            # # transform state of different human_num into fixed-size tensor
-            # if len(state.size()) == 1:
-            #     human_num = 1
-            #     feature_size = state.size()[0]
-            # else:
-            #     human_num, feature_size = state.size()
-            # if human_num != 5:
-            #     padding = torch.zeros((5 - human_num, feature_size))
-            #     state = torch.cat([state, padding])
-            self.memory.push((state, value, h_s))
+            self.memory.push((joined_state, value, state))
 
 
 def average(input_list):
