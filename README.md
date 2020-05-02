@@ -53,22 +53,17 @@ python train.py --policy scr
 ```
 2. Test policies with 500 test cases.
 ```
-python test.py --policy orca --phase test
-python test.py --policy scr --model_dir data/output --phase test
-```
-3. Run policy for one episode and visualize the result.
-```
-python test.py --policy orca --phase test --visualize --test_case 0
-python test.py --policy scr --model_dir data/output --phase test --visualize --test_case 0
-```
-4. Visualize a test case and potentially save a video or plot
-```
-python test.py --policy scr --model_dir data/output --phase test --visualize --test_case 0
-python test.py --policy scr --model_dir data/output --phase test --visualize --test_case 0 --plot_file data/output/plot.png 
-python test.py --policy scr --model_dir data/output --phase test --visualize --test_case 0 --video_file data/output/video.mp4
+python acceptance_test_score.py --policy orca --phase test
+python acceptance_test_score.py --policy scr --model_dir data/output --phase test
 ```
 
-5. Plot training curve.
+3. Visualize a test case and potentially save a video or plot
+```
+python acceptance_test_visualisation.py --policy scr --model_dir data/output --phase test --visualize --test_case 0 --plot_file data/output/plot.png 
+python acceptance_test_visualisation.py --policy scr --model_dir data/output --phase test --visualize --test_case 0 --video_file data/output/video.mp4
+```
+
+4. Plot training curve.
 ```
 python utils/plot.py data/output/output.log
 ```
@@ -81,6 +76,10 @@ SARL             |  OM-SARL
 <img src="https://i.imgur.com/rUtAGVP.gif" width="400" />|<img src="https://i.imgur.com/UXhcvZL.gif" width="400" />
 
 ## Interactive Simulation
+The policies can also be tested by manually controlling the position of the human. This can be done by:
+```
+python acceptance_test_interaction.py --policy scr
+```
 
 <img src="https://user-images.githubusercontent.com/24938569/80857758-add85980-8c54-11ea-9557-5a1c35536118.gif" width="400" />|
 
