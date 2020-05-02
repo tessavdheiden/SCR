@@ -80,16 +80,7 @@ CADRL             | LSTM-RL
 SARL             |  OM-SARL
 <img src="https://i.imgur.com/rUtAGVP.gif" width="400" />|<img src="https://i.imgur.com/UXhcvZL.gif" width="400" />
 
+## Interactive Simulation
 
-## Citation
-If you find the codes or paper useful for your research, please cite our paper:
-```
-@misc{heiden2020social,
-    title={Social navigation with human empowerment driven reinforcement learning},
-    author={Tessa van der Heiden and Christian Weiss and Naveen Nagaraja Shankar and Efstratios Gavves and Herke van Hoof},
-    year={2020},
-    eprint={2003.08158},
-    archivePrefix={arXiv},
-    primaryClass={cs.MA}
-}
-```
+![interactive](https://user-images.githubusercontent.com/24938569/80857758-add85980-8c54-11ea-9557-5a1c35536118.gif)
+
