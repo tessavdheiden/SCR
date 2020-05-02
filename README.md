@@ -82,5 +82,6 @@ SARL             |  OM-SARL
 
 ## Interactive Simulation
 
-![interactive](https://user-images.githubusercontent.com/24938569/80857758-add85980-8c54-11ea-9557-5a1c35536118.gif)
+<img src="https://user-images.githubusercontent.com/24938569/80857758-add85980-8c54-11ea-9557-5a1c35536118.gif" width="400" />|
+
 
