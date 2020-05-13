@@ -48,9 +48,6 @@ class CrowdSim(gym.Env):
         robot is controlled by a known and learnable policy.
 
         """
-        self.fig = None
-        self.ax = None
-
         self.time_limit = None
         self.time_step = None
         self.robot = None
@@ -76,6 +73,8 @@ class CrowdSim(gym.Env):
         self.action_values = None
         self.attention_weights = None
         self.case_counter = {'train': 0, 'test': 0, 'val': 0}
+
+        self.renderer = MatplotRenderer()
 
     def configure(self, file):
         """
@@ -116,13 +115,8 @@ class CrowdSim(gym.Env):
         self.humans = humans
 
     def set_interactive_human(self):
-        self.create_fig()
-        self.fig.canvas.mpl_connect('key_press_event', self.on_click)
+        self.renderer.fig.canvas.mpl_connect('key_press_event', self.on_click)
         self.humans[0].set(-4, 0, 4, 0, 0, 0, 0)
-
-        goal = mlines.Line2D([4], [-4], color='red', marker='*', linestyle='None', markersize=15,
-                             label='Goal')
-        self.ax.add_artist(goal)
 
     def generate_static_human(self, i):
         if i == self.human_num - 1:
@@ -447,41 +441,68 @@ class CrowdSim(gym.Env):
 
         return ob, reward, done, info
 
+    def render(self, mode='human'):
+        humans = self.humans
+        robots = [self.robot]
+        self.renderer.add_humans(humans)
+        self.renderer.add_robots(robots)
+        self.renderer.render()
+
+        if mode == 'human':
+            pass
+        else:
+            raise NotImplementedError
+
+    def on_click(self, event):
+        #self.humans[0].policy.key_release(event.key)
+        self.humans[0].policy.key_press(event.key)
+
+class Renderer(object):
+    def __init__(self):
+        pass
+
+    def add_humans(self, humans):
+        pass
+
+    def add_robots(self, robots):
+        pass
+
+    def render(self):
+        pass
+
+
+class MatplotRenderer(Renderer):
+    def __init__(self):
+        self.create_fig()
+
+    def add_humans(self, humans):
+        self.reset_axis()
+        for i, human in enumerate(humans):
+            human_circle = plt.Circle(human.get_position(), human.radius, fill=False, color=self.cmap(i))
+            self.ax.add_artist(human_circle)
+            goal = mlines.Line2D([human.get_goal_position()[0]], [human.get_goal_position()[1]], color=self.cmap(i), marker='*', linestyle='None', markersize=15, label='Goal', fillstyle='none')
+            self.ax.add_artist(goal)
+
+    def add_robots(self, robots):
+        for i, robot in enumerate(robots):
+            robot_circle = plt.Circle(robot.get_position(),robot.radius, fill=True, color='k', fc='orange')
+            self.ax.add_artist(robot_circle)
+            goal = mlines.Line2D([robot.get_goal_position()[0]], [robot.get_goal_position()[1]], color='red', marker='*', linestyle='None',markersize=15, label='Goal')
+            self.ax.add_artist(goal)
+
+    def render(self):
+        plt.pause(.0001)
+
+    def reset_axis(self):
+        self.ax.clear()
+        self.ax.set_xlim(-6, 6)
+        self.ax.set_ylim(-6, 6)
+
     def create_fig(self):
         fig, ax = plt.subplots(figsize=(7, 7))
         self.fig = fig
         self.ax = ax
         self.cmap = plt.cm.get_cmap('hsv', 5)
-
-    def reset_axis(self):
-        assert self.ax
-        self.ax.clear()
-        goal = mlines.Line2D([0], [self.circle_radius], color='red', marker='*', linestyle='None', markersize=15, label='Goal')
-        self.ax.add_artist(goal)
-        goal = mlines.Line2D([4], [0], color='red', marker='*', linestyle='None', markersize=15, label='Goal', fillstyle='none')
-        self.ax.add_artist(goal)
-        self.ax.set_xlim(-6, 6)
-        self.ax.set_ylim(-6, 6)
-
-    def render(self, mode='human'):
-        if not self.fig:
-            self.create_fig()
-
-        if mode == 'human':
-            self.reset_axis()
-            for i, human in enumerate(self.humans):
-                human_circle = plt.Circle(human.get_position(), human.radius, fill=False, color=self.cmap(i))
-                self.ax.add_artist(human_circle)
-            self.ax.add_artist(plt.Circle(self.robot.get_position(), self.robot.radius, fill=True, color='k', fc='orange'))
-            plt.pause(.0001)
-        else:
-            raise NotImplementedError
-
-
-
-    def on_click(self, event):
-        #self.humans[0].policy.key_release(event.key)
-        self.humans[0].policy.key_press(event.key)
 
 
 
