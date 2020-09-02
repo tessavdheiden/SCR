@@ -18,7 +18,7 @@ from crowd_nav.policy.policy_factory import policy_factory
 def main():
     parser = argparse.ArgumentParser('Parse configuration file')
     parser.add_argument('--env_config', type=str, default='configs/env.config')
-    parser.add_argument('--policy', type=str, default='sarl')
+    parser.add_argument('--policy', type=str, default='scr')
     parser.add_argument('--policy_config', type=str, default='configs/policy.config')
     parser.add_argument('--train_config', type=str, default='configs/train.config')
     parser.add_argument('--output_dir', type=str, default='data/output')
@@ -147,7 +147,7 @@ def main():
     # fill the memory pool with some RL experience
     if args.resume:
         robot.policy.set_epsilon(epsilon_end)
-        explorer.run_episode('val', video_file=f'data/output/video_e{-1}.mp4', plot_file=f'data/output/plot_e{-1}.png')
+        explorer.run_episode('val', video_file=f'data/output/video_e{-1}.mp4')
         explorer.run_k_episodes(100, 'train', update_memory=True, episode=0)
         logging.info('Experience set size: %d/%d', len(memory), memory.capacity)
     episode = 0
@@ -161,13 +161,14 @@ def main():
                 epsilon = epsilon_end
         robot.policy.set_epsilon(epsilon)
 
-        # evaluate the model
-        if episode % evaluation_interval == 0:
-            explorer.run_episode('val', video_file=f'data/output/video_e{episode}.mp4', plot_file=f'data/output/plot_e{episode}.png')
-
         # sample k episodes into memory and optimize over the generated memory
         explorer.run_k_episodes(sample_episodes, 'train', update_memory=True, episode=episode)
         trainer.optimize_batch(train_batches)
+
+        # evaluate the model
+        if episode % evaluation_interval == 0:
+            explorer.run_episode('val', video_file=f'data/output/video_e{episode}.mp4')
+
         episode += 1
 
         if episode % target_update_interval == 0:

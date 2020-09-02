@@ -15,13 +15,13 @@ setup(
         'crowd_sim.envs.utils',
     ],
     install_requires=[
-        'gitpython',
+        'gitpython==0.10.8',
         'gym',
         'matplotlib',
         'numpy',
         'scipy',
-        'torch',
-        'torchvision',
+        'torch==1.4.0',
+        'torchvision==0.5.0',
     ],
     extras_require={
         'test': [
