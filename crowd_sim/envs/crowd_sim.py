@@ -1,8 +1,10 @@
 import logging
 import gym
+import matplotlib as mpl
 import matplotlib.lines as mlines
 import configparser
 import matplotlib.pylab as plt
+import pyglet
 
 import numpy as np
 import rvo2
@@ -115,7 +117,7 @@ class CrowdSim(gym.Env):
         self.humans = humans
 
     def set_interactive_human(self):
-        self.renderer.fig.canvas.mpl_connect('key_press_event', self.on_click)
+        self.renderer.connect(self.on_click)
         self.humans[0].set(-4, 0, 4, 0, 0, 0, 0)
 
     def generate_static_human(self, i):
@@ -504,5 +506,7 @@ class MatplotRenderer(Renderer):
         self.ax = ax
         self.cmap = plt.cm.get_cmap('hsv', 5)
 
+    def connect(self, func):
+        self.fig.canvas.mpl_connect('key_press_event', func)
 
 
