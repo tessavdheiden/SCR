@@ -124,7 +124,7 @@ class SCR(SARL):
         # train value network wit empowerment
         self.optimizer.zero_grad()
         outputs = self.model(joint_states)
-        loss = self.criterion(outputs, (1 - self.beta) * values + self.beta * estimate.view(n_batch, n_humans).mean(-1).view(-1, 1))
+        loss = self.criterion(outputs, (1 - self.beta) * values + self.beta * estimate.view(n_batch, n_humans).mean(-1).view(-1, 1).detach())
         loss.backward()
         self.optimizer.step()
 
