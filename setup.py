@@ -15,7 +15,7 @@ setup(
         'crowd_sim.envs.utils',
     ],
     install_requires=[
-        'gitpython==0.10.8',
+        'gitpython==3.1.37',
         'gym',
         'matplotlib',
         'numpy',
